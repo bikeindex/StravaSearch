@@ -16,27 +16,21 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+function SettingsModalContent({ onClose }: { onClose: () => void }) {
   const { athlete, logout } = useAuth();
   const { isSyncing, progress, syncAll } = useActivitySync();
-  const [clientId, setClientId] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
+  const [clientId, setClientId] = useState(() => getStravaCredentials().clientId);
+  const [clientSecret, setClientSecret] = useState(() => getStravaCredentials().clientSecret);
   const [activityCount, setActivityCount] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      const { clientId, clientSecret } = getStravaCredentials();
-      setClientId(clientId);
-      setClientSecret(clientSecret);
-
-      if (athlete) {
-        getActivitiesForAthlete(athlete.id).then((activities) => {
-          setActivityCount(activities.length);
-        });
-      }
+    if (athlete) {
+      getActivitiesForAthlete(athlete.id).then((activities) => {
+        setActivityCount(activities.length);
+      });
     }
-  }, [isOpen, athlete]);
+  }, [athlete]);
 
   const handleSaveCredentials = () => {
     setStravaCredentials(clientId.trim(), clientSecret.trim());
@@ -48,8 +42,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     await logout();
     onClose();
   };
-
-  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -173,4 +165,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       </div>
     </div>
   );
+}
+
+export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  if (!isOpen) return null;
+  return <SettingsModalContent onClose={onClose} />;
 }

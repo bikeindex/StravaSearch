@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   setStravaCredentials,
@@ -7,18 +7,16 @@ import {
 } from '../services/strava';
 import { Activity, Settings, ExternalLink, AlertCircle } from 'lucide-react';
 
+function getInitialCredentials() {
+  return getStravaCredentials();
+}
+
 export function LoginPage() {
   const { login, error } = useAuth();
   const [showConfig, setShowConfig] = useState(!hasStravaCredentials());
-  const [clientId, setClientId] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
+  const [clientId, setClientId] = useState(() => getInitialCredentials().clientId);
+  const [clientSecret, setClientSecret] = useState(() => getInitialCredentials().clientSecret);
   const [configError, setConfigError] = useState('');
-
-  useEffect(() => {
-    const { clientId, clientSecret } = getStravaCredentials();
-    setClientId(clientId);
-    setClientSecret(clientSecret);
-  }, []);
 
   const handleSaveConfig = () => {
     if (!clientId.trim() || !clientSecret.trim()) {
