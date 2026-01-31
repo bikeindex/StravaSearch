@@ -1,0 +1,176 @@
+import { useState, useEffect } from 'react';
+import { X, Trash2, AlertTriangle, Download, RefreshCw } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useActivitySync } from '../hooks/useActivitySync';
+import {
+  setStravaCredentials,
+  getStravaCredentials,
+} from '../services/strava';
+import {
+  clearAllData,
+  getActivitiesForAthlete,
+} from '../services/database';
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const { athlete, logout } = useAuth();
+  const { isSyncing, progress, syncAll } = useActivitySync();
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [activityCount, setActivityCount] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const { clientId, clientSecret } = getStravaCredentials();
+      setClientId(clientId);
+      setClientSecret(clientSecret);
+
+      if (athlete) {
+        getActivitiesForAthlete(athlete.id).then((activities) => {
+          setActivityCount(activities.length);
+        });
+      }
+    }
+  }, [isOpen, athlete]);
+
+  const handleSaveCredentials = () => {
+    setStravaCredentials(clientId.trim(), clientSecret.trim());
+    onClose();
+  };
+
+  const handleClearData = async () => {
+    await clearAllData();
+    await logout();
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Settings</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Sync section */}
+          <div>
+            <h3 className="font-medium text-gray-900 mb-3">Data Sync</h3>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">
+                  Activities stored locally:
+                </span>
+                <span className="font-medium">{activityCount}</span>
+              </div>
+
+              <button
+                onClick={syncAll}
+                disabled={isSyncing}
+                className="w-full py-2 bg-[#fc4c02] text-white rounded-lg hover:bg-[#e34402] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSyncing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    {progress?.status || 'Syncing...'}
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Full Sync (Download All Activities)
+                  </>
+                )}
+              </button>
+
+              <p className="text-xs text-gray-500">
+                This will download all your activities from Strava. This may take a
+                while if you have many activities.
+              </p>
+            </div>
+          </div>
+
+          {/* API Credentials */}
+          <div>
+            <h3 className="font-medium text-gray-900 mb-3">Strava API Credentials</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Client ID</label>
+                <input
+                  type="text"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fc4c02] focus:border-transparent outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Client Secret</label>
+                <input
+                  type="password"
+                  value={clientSecret}
+                  onChange={(e) => setClientSecret(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fc4c02] focus:border-transparent outline-none"
+                />
+              </div>
+              <button
+                onClick={handleSaveCredentials}
+                className="w-full py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors"
+              >
+                Save Credentials
+              </button>
+            </div>
+          </div>
+
+          {/* Danger zone */}
+          <div>
+            <h3 className="font-medium text-red-600 mb-3">Danger Zone</h3>
+            <div className="border border-red-200 rounded-lg p-4">
+              {showDeleteConfirm ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span className="font-medium">Are you sure?</span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    This will delete all locally stored data and log you out. Your
+                    Strava data will not be affected.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleClearData}
+                      className="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Delete All Data
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Clear All Local Data
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
