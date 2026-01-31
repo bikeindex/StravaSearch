@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckSquare, Square, Edit3, Loader2, X } from 'lucide-react';
+import { CheckSquare, Square, Edit3, Loader2, X, Tag } from 'lucide-react';
 import type { StoredGear } from '../services/database';
 import type { UpdatableActivity } from '../types/strava';
 import { ACTIVITY_TYPES } from '../types/strava';
@@ -24,9 +24,11 @@ export function BulkActions({
   gear,
 }: BulkActionsProps) {
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editType, setEditType] = useState<'type' | 'gear' | null>(null);
+  const [editType, setEditType] = useState<'type' | 'gear' | 'tags' | null>(null);
   const [selectedType, setSelectedType] = useState('');
   const [selectedGearId, setSelectedGearId] = useState('');
+  const [commuteValue, setCommuteValue] = useState<boolean | null>(null);
+  const [trainerValue, setTrainerValue] = useState<boolean | null>(null);
 
   const handleUpdate = async () => {
     if (editType === 'type' && selectedType) {
@@ -34,11 +36,19 @@ export function BulkActions({
     } else if (editType === 'gear') {
       // Empty string means remove gear
       await onUpdateSelected({ gear_id: selectedGearId || '' });
+    } else if (editType === 'tags') {
+      const updates: UpdatableActivity = {};
+      if (commuteValue !== null) {
+        updates.commute = commuteValue;
+      }
+      if (trainerValue !== null) {
+        updates.trainer = trainerValue;
+      }
+      if (Object.keys(updates).length > 0) {
+        await onUpdateSelected(updates);
+      }
     }
-    setShowEditModal(false);
-    setEditType(null);
-    setSelectedType('');
-    setSelectedGearId('');
+    closeModal();
   };
 
   const closeModal = () => {
@@ -46,6 +56,8 @@ export function BulkActions({
     setEditType(null);
     setSelectedType('');
     setSelectedGearId('');
+    setCommuteValue(null);
+    setTrainerValue(null);
   };
 
   return (
@@ -111,6 +123,22 @@ export function BulkActions({
               )}
               Change Gear
             </button>
+
+            <button
+              onClick={() => {
+                setEditType('tags');
+                setShowEditModal(true);
+              }}
+              disabled={isUpdating}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {isUpdating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Tag className="w-4 h-4" />
+              )}
+              Change Tags
+            </button>
           </div>
         )}
       </div>
@@ -121,7 +149,9 @@ export function BulkActions({
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">
-                {editType === 'type' ? 'Change Activity Type' : 'Change Equipment'}
+                {editType === 'type' && 'Change Activity Type'}
+                {editType === 'gear' && 'Change Equipment'}
+                {editType === 'tags' && 'Change Tags'}
               </h3>
               <button
                 onClick={closeModal}
@@ -175,6 +205,46 @@ export function BulkActions({
               </div>
             )}
 
+            {editType === 'tags' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Commute
+                  </label>
+                  <select
+                    value={commuteValue === null ? '' : commuteValue.toString()}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCommuteValue(val === '' ? null : val === 'true');
+                    }}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fc4c02] focus:border-transparent outline-none"
+                  >
+                    <option value="">No change</option>
+                    <option value="true">Mark as commute</option>
+                    <option value="false">Remove commute tag</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Trainer / Indoor
+                  </label>
+                  <select
+                    value={trainerValue === null ? '' : trainerValue.toString()}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTrainerValue(val === '' ? null : val === 'true');
+                    }}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#fc4c02] focus:border-transparent outline-none"
+                  >
+                    <option value="">No change</option>
+                    <option value="true">Mark as trainer/indoor</option>
+                    <option value="false">Remove trainer tag</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3 mt-6">
               <button
                 onClick={closeModal}
@@ -184,7 +254,11 @@ export function BulkActions({
               </button>
               <button
                 onClick={handleUpdate}
-                disabled={isUpdating || (editType === 'type' && !selectedType)}
+                disabled={
+                  isUpdating ||
+                  (editType === 'type' && !selectedType) ||
+                  (editType === 'tags' && commuteValue === null && trainerValue === null)
+                }
                 className="flex-1 px-4 py-2 bg-[#fc4c02] text-white rounded-lg hover:bg-[#e34402] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
