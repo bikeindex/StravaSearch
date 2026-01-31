@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Credentials and secrets - NEVER commit these
+.env
+.env.*
+*.env
+credentials.json
+secrets.json
+*secret*
+*credential*
+
+# Storybook
+storybook-static
+
+# Debug logs
+debug-storybook.log

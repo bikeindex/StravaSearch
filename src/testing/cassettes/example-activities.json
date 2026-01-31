@@ -1,0 +1,152 @@
+{
+  "name": "example-activities",
+  "recordedAt": "2024-01-15T10:00:00.000Z",
+  "interactions": [
+    {
+      "request": {
+        "url": "https://www.strava.com/api/v3/athlete/activities?page=1&per_page=100",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer [REDACTED]",
+          "Content-Type": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "content-type": "application/json; charset=utf-8"
+        },
+        "body": [
+          {
+            "id": 12345678901,
+            "name": "Morning Run",
+            "distance": 5234.5,
+            "moving_time": 1800,
+            "elapsed_time": 1920,
+            "total_elevation_gain": 45,
+            "type": "Run",
+            "sport_type": "Run",
+            "start_date": "2024-01-15T12:30:00Z",
+            "start_date_local": "2024-01-15T07:30:00Z",
+            "timezone": "(GMT-05:00) America/New_York",
+            "utc_offset": -18000,
+            "location_city": "New York",
+            "location_state": "New York",
+            "location_country": "United States",
+            "achievement_count": 2,
+            "kudos_count": 8,
+            "comment_count": 1,
+            "athlete_count": 1,
+            "photo_count": 0,
+            "trainer": false,
+            "commute": false,
+            "manual": false,
+            "private": false,
+            "visibility": "everyone",
+            "flagged": false,
+            "gear_id": "g12345678",
+            "average_speed": 2.91,
+            "max_speed": 4.2,
+            "has_heartrate": true,
+            "average_heartrate": 145,
+            "max_heartrate": 168,
+            "heartrate_opt_out": false,
+            "display_hide_heartrate_option": false,
+            "pr_count": 1,
+            "total_photo_count": 0,
+            "has_kudoed": false
+          },
+          {
+            "id": 12345678902,
+            "name": "Afternoon Ride",
+            "distance": 42500,
+            "moving_time": 5400,
+            "elapsed_time": 6000,
+            "total_elevation_gain": 320,
+            "type": "Ride",
+            "sport_type": "Ride",
+            "start_date": "2024-01-14T18:00:00Z",
+            "start_date_local": "2024-01-14T13:00:00Z",
+            "timezone": "(GMT-05:00) America/New_York",
+            "utc_offset": -18000,
+            "location_city": "Brooklyn",
+            "location_state": "New York",
+            "location_country": "United States",
+            "achievement_count": 5,
+            "kudos_count": 15,
+            "comment_count": 2,
+            "athlete_count": 1,
+            "photo_count": 2,
+            "trainer": false,
+            "commute": false,
+            "manual": false,
+            "private": false,
+            "visibility": "everyone",
+            "flagged": false,
+            "gear_id": "b12345678",
+            "average_speed": 7.87,
+            "max_speed": 12.5,
+            "average_watts": 175,
+            "has_heartrate": true,
+            "average_heartrate": 138,
+            "max_heartrate": 165,
+            "heartrate_opt_out": false,
+            "display_hide_heartrate_option": false,
+            "pr_count": 3,
+            "total_photo_count": 2,
+            "has_kudoed": false
+          }
+        ]
+      },
+      "recordedAt": "2024-01-15T10:00:00.000Z"
+    },
+    {
+      "request": {
+        "url": "https://www.strava.com/api/v3/athlete",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer [REDACTED]",
+          "Content-Type": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "statusText": "OK",
+        "headers": {
+          "content-type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "id": 12345678,
+          "username": "athlete_demo",
+          "firstname": "Demo",
+          "lastname": "Athlete",
+          "city": "New York",
+          "state": "New York",
+          "country": "United States",
+          "profile": "https://dgalywyr863hv.cloudfront.net/pictures/athletes/[ATHLETE_ID]/large.jpg",
+          "profile_medium": "https://dgalywyr863hv.cloudfront.net/pictures/athletes/[ATHLETE_ID]/medium.jpg",
+          "bikes": [
+            {
+              "id": "b12345678",
+              "primary": true,
+              "name": "Trek Domane",
+              "distance": 2345678,
+              "resource_state": 2
+            }
+          ],
+          "shoes": [
+            {
+              "id": "g12345678",
+              "primary": true,
+              "name": "Nike Pegasus",
+              "distance": 456789,
+              "resource_state": 2
+            }
+          ]
+        }
+      },
+      "recordedAt": "2024-01-15T10:00:00.000Z"
+    }
+  ]
+}
