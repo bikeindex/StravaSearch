@@ -4,7 +4,12 @@ on:
   push:
     branches: ['main', 'master']
   pull_request:
-    branches: ['main', 'master']
+    # Run on all PRs, including from forks
+    types: [opened, synchronize, reopened]
+
+# Ensure CI runs on fork PRs by not requiring write permissions
+permissions:
+  contents: read
 
 jobs:
   lint:
