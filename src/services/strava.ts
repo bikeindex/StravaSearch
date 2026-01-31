@@ -12,9 +12,13 @@ const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize';
 const STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token';
 const STRAVA_API_URL = 'https://www.strava.com/api/v3';
 
-// These will be configured by the user
-let CLIENT_ID = localStorage.getItem('strava_client_id') || '';
-let CLIENT_SECRET = localStorage.getItem('strava_client_secret') || '';
+// Environment variables (set via .env file or build-time)
+const ENV_CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || '';
+const ENV_CLIENT_SECRET = import.meta.env.VITE_STRAVA_CLIENT_SECRET || '';
+
+// Credentials can be set via env vars or localStorage (user input takes precedence)
+let CLIENT_ID = localStorage.getItem('strava_client_id') || ENV_CLIENT_ID;
+let CLIENT_SECRET = localStorage.getItem('strava_client_secret') || ENV_CLIENT_SECRET;
 
 export function setStravaCredentials(clientId: string, clientSecret: string): void {
   CLIENT_ID = clientId;

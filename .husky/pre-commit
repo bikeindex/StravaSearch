@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Check for credentials before allowing commit
+npm run check-credentials
+
+# Run lint-staged
+npx lint-staged

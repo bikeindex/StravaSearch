@@ -25,12 +25,13 @@ dist-ssr
 
 # Credentials and secrets - NEVER commit these
 .env
-.env.*
-*.env
+.env.local
+.env.*.local
 credentials.json
 secrets.json
-*secret*
-*credential*
+
+# Allow example env file
+!.env.example
 
 # Storybook
 storybook-static
