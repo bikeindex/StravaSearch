@@ -38,3 +38,6 @@ storybook-static
 
 # Debug logs
 debug-storybook.log
+
+# Ignore .claude settings
+.claude/

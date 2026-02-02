@@ -75,4 +75,4 @@ npm run preview
 
 ## License
 
-AGPL-3.0-or-later - See [LICENSE](LICENSE) for details.
+AGPL - See [LICENSE](LICENSE)
