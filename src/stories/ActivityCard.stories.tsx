@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { ActivityCard } from '../components/ActivityCard';
-import { mockActivities, mockGear } from './mocks';
+import { mockActivities, mockGear, babyHawkActivity, babyHawkGear } from './mocks';
 
 const meta = {
   title: 'Components/ActivityCard',
@@ -90,6 +90,15 @@ export const NoHeartRate: Story = {
   args: {
     activity: { ...mockActivities[0], has_heartrate: false, average_heartrate: undefined },
     gear: mockGear,
+    isSelected: false,
+    onToggleSelect: () => {},
+  },
+};
+
+export const BabyHawk: Story = {
+  args: {
+    activity: babyHawkActivity,
+    gear: [...mockGear, babyHawkGear],
     isSelected: false,
     onToggleSelect: () => {},
   },

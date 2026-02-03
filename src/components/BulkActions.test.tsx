@@ -5,7 +5,10 @@ import { BulkActions } from './BulkActions';
 describe('BulkActions', () => {
   const defaultProps = {
     selectedCount: 0,
-    totalCount: 10,
+    pageCount: 10,
+    totalPages: 3,
+    currentPage: 1,
+    onPageChange: vi.fn(),
     onSelectAll: vi.fn(),
     onDeselectAll: vi.fn(),
     onUpdateSelected: vi.fn().mockResolvedValue(undefined),
@@ -20,8 +23,13 @@ describe('BulkActions', () => {
     vi.clearAllMocks();
   });
 
-  it('renders select all button when nothing selected', () => {
+  it('renders select all on page button when multiple pages', () => {
     render(<BulkActions {...defaultProps} />);
+    expect(screen.getByText('Select all on page (10)')).toBeInTheDocument();
+  });
+
+  it('renders select all button when single page', () => {
+    render(<BulkActions {...defaultProps} totalPages={1} />);
     expect(screen.getByText('Select all (10)')).toBeInTheDocument();
   });
 
@@ -44,9 +52,9 @@ describe('BulkActions', () => {
     expect(screen.queryByText('Change Tags')).not.toBeInTheDocument();
   });
 
-  it('calls onSelectAll when select all is clicked', () => {
+  it('calls onSelectAll when select all on page is clicked', () => {
     render(<BulkActions {...defaultProps} />);
-    fireEvent.click(screen.getByText('Select all (10)'));
+    fireEvent.click(screen.getByText('Select all on page (10)'));
     expect(defaultProps.onSelectAll).toHaveBeenCalled();
   });
 
@@ -206,10 +214,67 @@ describe('BulkActions', () => {
     expect(screen.queryByText('Change Activity Type')).not.toBeInTheDocument();
   });
 
+  it('closes modal immediately when Update is clicked', async () => {
+    render(<BulkActions {...defaultProps} selectedCount={2} />);
+    fireEvent.click(screen.getByText('Change Gear'));
+    expect(screen.getByText('Change Equipment')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Update'));
+
+    // Modal should close immediately, before the update completes
+    await waitFor(() => {
+      expect(screen.queryByText('Change Equipment')).not.toBeInTheDocument();
+    });
+  });
+
   it('disables buttons when isUpdating is true', () => {
     render(<BulkActions {...defaultProps} selectedCount={2} isUpdating={true} />);
     expect(screen.getByText('Change Type').closest('button')).toBeDisabled();
     expect(screen.getByText('Change Gear').closest('button')).toBeDisabled();
     expect(screen.getByText('Change Tags').closest('button')).toBeDisabled();
+  });
+
+  describe('Top Pagination', () => {
+    it('shows pagination when there are multiple pages', () => {
+      render(<BulkActions {...defaultProps} totalPages={3} currentPage={2} />);
+      expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    });
+
+    it('does not show pagination when there is only one page', () => {
+      render(<BulkActions {...defaultProps} totalPages={1} currentPage={1} />);
+      expect(screen.queryByText('1 / 1')).not.toBeInTheDocument();
+    });
+
+    it('calls onPageChange when clicking next', () => {
+      render(<BulkActions {...defaultProps} totalPages={3} currentPage={1} />);
+      const buttons = screen.getAllByRole('button');
+      // Find the next button (has ChevronRight)
+      const nextButton = buttons.find(btn => btn.querySelector('svg.lucide-chevron-right'));
+      fireEvent.click(nextButton!);
+      expect(defaultProps.onPageChange).toHaveBeenCalledWith(2);
+    });
+
+    it('calls onPageChange when clicking previous', () => {
+      render(<BulkActions {...defaultProps} totalPages={3} currentPage={2} />);
+      const buttons = screen.getAllByRole('button');
+      // Find the previous button (has ChevronLeft)
+      const prevButton = buttons.find(btn => btn.querySelector('svg.lucide-chevron-left'));
+      fireEvent.click(prevButton!);
+      expect(defaultProps.onPageChange).toHaveBeenCalledWith(1);
+    });
+
+    it('disables previous button on first page', () => {
+      render(<BulkActions {...defaultProps} totalPages={3} currentPage={1} />);
+      const buttons = screen.getAllByRole('button');
+      const prevButton = buttons.find(btn => btn.querySelector('svg.lucide-chevron-left'));
+      expect(prevButton).toBeDisabled();
+    });
+
+    it('disables next button on last page', () => {
+      render(<BulkActions {...defaultProps} totalPages={3} currentPage={3} />);
+      const buttons = screen.getAllByRole('button');
+      const nextButton = buttons.find(btn => btn.querySelector('svg.lucide-chevron-right'));
+      expect(nextButton).toBeDisabled();
+    });
   });
 });

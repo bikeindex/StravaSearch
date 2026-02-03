@@ -6,7 +6,7 @@ A static web application for searching, filtering, and bulk-updating your Strava
 
 - **OAuth Authentication**: Securely connect with your Strava account
 - **Local Storage**: All activities stored in IndexedDB - works offline after initial sync
-- **Powerful Search**: Search activities by name, description, or location
+- **Powerful Search**: Search activities by name, description, location, recorded by
 - **Advanced Filters**:
   - Filter by activity type (Run, Ride, Swim, etc.)
   - Filter by date range
@@ -44,18 +44,38 @@ A static web application for searching, filtering, and bulk-updating your Strava
 
 ## Development
 
+Install dependencies and start dev server with `./start.sh`
+
+Other commands
+
 ```bash
-# Install dependencies
-npm install
+# Install dependencies. Uses legacy-peer-deps because storybook/vite version problem
+npm install --legacy-peer-deps
 
 # Start development server
 npm run dev
+
+# run the storybook server
+npm run storybook
 
 # Build for production
 npm run build
 
 # Preview production build
 npm run preview
+```
+
+Some commands to run in your browser console (after authenticated with Strava):
+
+```js
+// Get a download of an activity (with tokens removed)
+vcr.startRecording('activity-detail')
+await strava.getActivity(17145907973)
+const cassette = vcr.stopRecording()
+vcr.downloadCassette(cassette)
+
+// See the data that is stored for an activity:
+await db.getActivityById(17145907973)
 ```
 
 ## Tech Stack

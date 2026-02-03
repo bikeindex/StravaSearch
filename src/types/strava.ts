@@ -77,6 +77,86 @@ export interface StravaActivity {
   has_kudoed: boolean;
   suffer_score?: number;
   calories?: number;
+  device_name?: string;
+  hide_from_home?: boolean;
+  segment_cities?: string[];
+  segment_states?: string[];
+  segment_countries?: string[];
+  photos?: {
+    primary?: {
+      unique_id: string;
+      urls: {
+        '100': string;
+        '600': string;
+      };
+      source: number;
+      media_type: number;
+    };
+    use_primary_photo: boolean;
+    count: number;
+  };
+  segment_efforts?: Array<{
+    segment: {
+      city?: string | null;
+      state?: string | null;
+      country?: string | null;
+    };
+  }>;
+}
+
+/**
+ * Derive location from segment efforts when activity location is null,
+ * and extract all unique locations from segments
+ */
+export function deriveLocationFromSegments(activity: StravaActivity): StravaActivity {
+  // Extract all unique locations from segment efforts
+  const cities = new Set<string>();
+  const states = new Set<string>();
+  const countries = new Set<string>();
+
+  activity.segment_efforts?.forEach((effort) => {
+    if (effort.segment?.city) cities.add(effort.segment.city);
+    if (effort.segment?.state) states.add(effort.segment.state);
+    if (effort.segment?.country) countries.add(effort.segment.country);
+  });
+
+  const segment_cities = cities.size > 0 ? Array.from(cities).sort() : undefined;
+  const segment_states = states.size > 0 ? Array.from(states).sort() : undefined;
+  const segment_countries = countries.size > 0 ? Array.from(countries).sort() : undefined;
+
+  // If activity already has location, just add segment locations
+  if (activity.location_city || activity.location_state) {
+    return {
+      ...activity,
+      segment_cities,
+      segment_states,
+      segment_countries,
+    };
+  }
+
+  // Otherwise, also derive primary location from first segment with location
+  const segmentWithLocation = activity.segment_efforts?.find(
+    (effort) => effort.segment?.city || effort.segment?.state
+  );
+
+  if (segmentWithLocation?.segment) {
+    return {
+      ...activity,
+      location_city: segmentWithLocation.segment.city ?? undefined,
+      location_state: segmentWithLocation.segment.state ?? undefined,
+      location_country: segmentWithLocation.segment.country ?? undefined,
+      segment_cities,
+      segment_states,
+      segment_countries,
+    };
+  }
+
+  return {
+    ...activity,
+    segment_cities,
+    segment_states,
+    segment_countries,
+  };
 }
 
 export interface StravaTokenResponse {
@@ -174,12 +254,23 @@ export const ACTIVITY_TYPES: ActivityType[] = [
   'Yoga',
 ];
 
+export type MutedFilter = 'all' | 'muted' | 'not_muted';
+
 export interface SearchFilters {
   query: string;
   activityTypes: string[];
   gearIds: string[];
+  noEquipment: boolean;
   dateFrom: string | null;
   dateTo: string | null;
+  distanceFrom: number | null;
+  distanceTo: number | null;
+  elevationFrom: number | null;
+  elevationTo: number | null;
+  activityTypesExpanded: boolean;
+  equipmentExpanded: boolean;
+  mutedFilter: MutedFilter;
+  page: number;
 }
 
 export interface UpdatableActivity {

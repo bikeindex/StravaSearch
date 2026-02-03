@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
+import { usePreferences } from './contexts/PreferencesContext';
 import { useActivities } from './hooks/useActivities';
+import { useActivitySync } from './hooks/useActivitySync';
 import { Header } from './components/Header';
+import { ErrorBanner } from './components/ErrorBanner';
 import { SearchFilters } from './components/SearchFilters';
 import { ActivityList } from './components/ActivityList';
 import { LoginPage } from './components/LoginPage';
@@ -12,6 +15,8 @@ import { Loader2 } from 'lucide-react';
 function Dashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const { syncState } = useAuth();
+  const { autoEnrich } = usePreferences();
+  const { isSyncing, isFetchingFullData, progress, error: syncError, clearError: clearSyncError, fetchFullActivityData } = useActivitySync();
   const {
     activities,
     filteredActivities,
@@ -22,13 +27,47 @@ function Dashboard() {
     setFilters,
     selectedIds,
     setSelectedIds,
-    selectAll,
     deselectAll,
     updateSelectedActivities,
     isUpdating,
+    updateProgress,
     refreshActivities,
     activityTypes,
   } = useActivities();
+
+  // Calculate displayed activities for current page
+  const PAGE_SIZE = 50;
+  const currentPage = filters.page;
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, filteredActivities.length);
+  const displayedActivityIds = filteredActivities.slice(startIndex, endIndex).map(a => a.id);
+
+  // Expose fetchFullActivityData on window for console access
+  useEffect(() => {
+    (window as unknown as { fetchFullActivityData: (ids?: number[]) => void }).fetchFullActivityData = (ids?: number[]) => {
+      const isForPage = !ids;
+      const activityIds = ids ?? displayedActivityIds;
+      console.log(`Fetching full data for ${activityIds.length} activities${isForPage ? ' on this page' : ''}...`);
+      fetchFullActivityData(activityIds, isForPage);
+    };
+
+    return () => {
+      delete (window as unknown as { fetchFullActivityData?: unknown }).fetchFullActivityData;
+    };
+  }, [displayedActivityIds, fetchFullActivityData]);
+
+  // Auto-fetch full activity data when autoEnrich is enabled (debounced)
+  useEffect(() => {
+    if (!autoEnrich || isSyncing || isFetchingFullData || displayedActivityIds.length === 0) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      fetchFullActivityData(displayedActivityIds, true);
+    }, 1500);
+
+    return () => clearTimeout(timeoutId);
+  }, [autoEnrich, displayedActivityIds, isSyncing, isFetchingFullData, fetchFullActivityData]);
 
   // Refresh activities when settings modal closes (in case of sync)
   const handleCloseSettings = useCallback(() => {
@@ -48,6 +87,16 @@ function Dashboard() {
     });
   }, [setSelectedIds]);
 
+  // Auto-refresh activities while syncing or fetching full data
+  useEffect(() => {
+    if (isSyncing || isFetchingFullData) {
+      const interval = setInterval(() => {
+        refreshActivities();
+      }, 2000); // Refresh every 2 seconds during sync/fetch
+      return () => clearInterval(interval);
+    }
+  }, [isSyncing, isFetchingFullData, refreshActivities]);
+
   // Auto-refresh activities periodically (every 5 minutes)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -57,11 +106,14 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [refreshActivities]);
 
-  // Show initial sync prompt if no sync has been done
-  if (!syncState?.isInitialSyncComplete) {
+  // Show initial sync prompt only if no sync has started yet
+  const needsInitialSync = !syncState?.isInitialSyncComplete && !isSyncing && activities.length === 0;
+
+  if (needsInitialSync) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header onOpenSettings={() => setShowSettings(true)} />
+        <Header onOpenSettings={() => setShowSettings(true)} isFetchingFullData={isFetchingFullData} fetchProgress={progress} />
+        {syncError && <ErrorBanner message={syncError} onDismiss={clearSyncError} />}
         <InitialSyncPrompt />
         <SettingsModal isOpen={showSettings} onClose={handleCloseSettings} />
       </div>
@@ -70,7 +122,8 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header onOpenSettings={() => setShowSettings(true)} />
+      <Header onOpenSettings={() => setShowSettings(true)} isFetchingFullData={isFetchingFullData} fetchProgress={progress} />
+      {syncError && <ErrorBanner message={syncError} onDismiss={clearSyncError} />}
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {error && (
@@ -94,14 +147,40 @@ function Dashboard() {
           isLoading={isLoading}
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
-          onSelectAll={selectAll}
+          onSelectIds={(ids) => setSelectedIds(new Set(ids))}
           onDeselectAll={deselectAll}
           onUpdateSelected={updateSelectedActivities}
           isUpdating={isUpdating}
+          filters={filters}
+          onFiltersChange={setFilters}
         />
       </main>
 
       <SettingsModal isOpen={showSettings} onClose={handleCloseSettings} />
+
+      {/* Full-page updating overlay */}
+      {isUpdating && updateProgress && (
+        <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <Loader2 className="w-8 h-8 text-[#fc4c02] animate-spin" />
+            </div>
+            <h2 className="text-xl font-semibold text-center mb-2">Updating Activities</h2>
+            <p className="text-gray-600 text-center mb-6">
+              {updateProgress.current} of {updateProgress.total} activities updated
+            </p>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-[#fc4c02] h-3 rounded-full transition-all duration-300"
+                style={{ width: `${(updateProgress.current / updateProgress.total) * 100}%` }}
+              />
+            </div>
+            <p className="text-sm text-gray-500 text-center mt-4">
+              Please wait while your activities are being updated on Strava...
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

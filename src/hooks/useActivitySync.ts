@@ -3,16 +3,19 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   getAllActivities,
   getAthleteGear,
+  getAthleteStats,
+  getActivity,
 } from '../services/strava';
+import { formatNumber } from '../utils/formatters';
 import {
   saveActivities,
   saveGear,
   getSyncState,
   updateSyncState,
   getActivitiesForAthlete,
+  getActivityById,
   type SyncState,
 } from '../services/database';
-
 interface SyncProgress {
   loaded: number;
   total: number | null;
@@ -21,17 +24,25 @@ interface SyncProgress {
 
 interface UseActivitySyncResult {
   isSyncing: boolean;
+  isFetchingFullData: boolean;
   progress: SyncProgress | null;
   error: string | null;
+  clearError: () => void;
   syncAll: () => Promise<void>;
   syncRecent: () => Promise<void>;
+  fetchFullActivityData: (activityIds: number[]) => Promise<void>;
 }
 
 export function useActivitySync(): UseActivitySyncResult {
   const { athlete, refreshSyncState } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFetchingFullData, setIsFetchingFullData] = useState(false);
   const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   const syncAll = useCallback(async () => {
     if (!athlete || isSyncing) return;
@@ -42,52 +53,63 @@ export function useActivitySync(): UseActivitySyncResult {
 
     try {
       // Sync gear first
-      setProgress({ loaded: 0, total: null, status: 'Syncing gear...' });
       const gear = await getAthleteGear();
       await saveGear(gear, athlete.id);
 
-      // Sync all activities
-      setProgress({ loaded: 0, total: null, status: 'Downloading activities...' });
+      // Get estimated total from athlete stats
+      let estimatedTotal: number | null = null;
+      try {
+        estimatedTotal = await getAthleteStats(athlete.id);
+      } catch {
+        // Stats endpoint may fail, continue without total
+      }
 
-      const activities = await getAllActivities((loaded, total) => {
-        setProgress({
-          loaded,
-          total,
-          status: `Downloaded ${loaded} activities...`,
-        });
+      let oldestActivityDate: string | null = null;
+      let isFirstBatch = true;
+
+      // Sync all activities - save each batch progressively
+      await getAllActivities({
+        onBatch: async (batch, totalSoFar) => {
+          // Save this batch immediately
+          await saveActivities(batch, athlete.id);
+
+          // Track oldest activity date
+          for (const activity of batch) {
+            if (!oldestActivityDate || new Date(activity.start_date) < new Date(oldestActivityDate)) {
+              oldestActivityDate = activity.start_date;
+            }
+          }
+
+          // After first batch, mark initial sync as complete so activities appear
+          if (isFirstBatch) {
+            isFirstBatch = false;
+            const syncState: SyncState = {
+              athleteId: athlete.id,
+              lastSyncedAt: Date.now(),
+              oldestActivityDate: null,
+              isInitialSyncComplete: true,
+            };
+            await updateSyncState(syncState);
+            await refreshSyncState();
+          }
+
+          setProgress({
+            loaded: totalSoFar,
+            total: estimatedTotal,
+            status: `${formatNumber(totalSoFar)}${estimatedTotal ? ` of ~${formatNumber(estimatedTotal)}` : ''} activities synced`,
+          });
+        },
       });
 
-      // Save to database
-      setProgress({
-        loaded: activities.length,
-        total: activities.length,
-        status: 'Saving to local database...',
-      });
-
-      await saveActivities(activities, athlete.id);
-
-      // Update sync state
-      const oldestActivity = activities.length > 0
-        ? activities.reduce((oldest, act) =>
-            new Date(act.start_date) < new Date(oldest.start_date) ? act : oldest
-          )
-        : null;
-
-      const syncState: SyncState = {
+      const finalSyncState: SyncState = {
         athleteId: athlete.id,
         lastSyncedAt: Date.now(),
-        oldestActivityDate: oldestActivity?.start_date || null,
+        oldestActivityDate: oldestActivityDate,
         isInitialSyncComplete: true,
       };
 
-      await updateSyncState(syncState);
+      await updateSyncState(finalSyncState);
       await refreshSyncState();
-
-      setProgress({
-        loaded: activities.length,
-        total: activities.length,
-        status: `Sync complete! ${activities.length} activities downloaded.`,
-      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed');
     } finally {
@@ -115,30 +137,25 @@ export function useActivitySync(): UseActivitySyncResult {
       }
 
       // Sync gear
-      setProgress({ loaded: 0, total: null, status: 'Syncing gear...' });
       const gear = await getAthleteGear();
       await saveGear(gear, athlete.id);
 
-      // Get new activities
-      setProgress({ loaded: 0, total: null, status: 'Checking for new activities...' });
+      // Get new activities - save each batch progressively
+      let newActivityCount = 0;
 
-      const newActivities = await getAllActivities((loaded, total) => {
-        setProgress({
-          loaded,
-          total,
-          status: `Found ${loaded} new activities...`,
-        });
-      }, afterDate);
+      await getAllActivities({
+        after: afterDate,
+        onBatch: async (batch, totalSoFar) => {
+          await saveActivities(batch, athlete.id);
+          newActivityCount = totalSoFar;
 
-      if (newActivities.length > 0) {
-        setProgress({
-          loaded: newActivities.length,
-          total: newActivities.length,
-          status: 'Saving new activities...',
-        });
-
-        await saveActivities(newActivities, athlete.id);
-      }
+          setProgress({
+            loaded: totalSoFar,
+            total: null,
+            status: `${formatNumber(totalSoFar)} new activities synced`,
+          });
+        },
+      });
 
       // Update sync state
       const currentSyncState = await getSyncState(athlete.id);
@@ -149,10 +166,10 @@ export function useActivitySync(): UseActivitySyncResult {
       await refreshSyncState();
 
       setProgress({
-        loaded: newActivities.length,
-        total: newActivities.length,
-        status: newActivities.length > 0
-          ? `Sync complete! ${newActivities.length} new activities added.`
+        loaded: newActivityCount,
+        total: newActivityCount,
+        status: newActivityCount > 0
+          ? `${formatNumber(newActivityCount)} new activities synced`
           : 'Already up to date!',
       });
     } catch (err) {
@@ -162,11 +179,66 @@ export function useActivitySync(): UseActivitySyncResult {
     }
   }, [athlete, isSyncing, refreshSyncState]);
 
+  const fetchFullActivityData = useCallback(async (activityIds: number[], isForPage: boolean = false) => {
+    if (!athlete || isSyncing || isFetchingFullData || activityIds.length === 0) return;
+
+    setIsFetchingFullData(true);
+    setError(null);
+
+    // Filter out activities that already have full data (hide_from_home is only present in detailed responses)
+    const idsToFetch: number[] = [];
+    for (const id of activityIds) {
+      const activity = await getActivityById(id);
+      if (activity && activity.hide_from_home === undefined) {
+        idsToFetch.push(id);
+      }
+    }
+
+    if (idsToFetch.length === 0) {
+      setIsFetchingFullData(false);
+      return;
+    }
+
+    const statusPrefix = isForPage ? 'Fetching full data for this page' : 'Fetching full data';
+    setProgress({ loaded: 0, total: idsToFetch.length, status: `${statusPrefix}: 0 of ${formatNumber(idsToFetch.length)}` });
+
+    try {
+      for (let i = 0; i < idsToFetch.length; i++) {
+        const activityId = idsToFetch[i];
+        try {
+          console.log(`Enriching activity ${activityId}`);
+          const fullActivity = await getActivity(activityId);
+          await saveActivities([fullActivity], athlete.id);
+        } catch {
+          console.warn(`Failed to fetch full data for activity ${activityId}, skipping`);
+        }
+
+        setProgress({
+          loaded: i + 1,
+          total: idsToFetch.length,
+          status: `${statusPrefix}: ${formatNumber(i + 1)} of ${formatNumber(idsToFetch.length)}`,
+        });
+
+        // Small delay to avoid rate limiting
+        if (i < idsToFetch.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch full activity data');
+    } finally {
+      setIsFetchingFullData(false);
+    }
+  }, [athlete, isSyncing, isFetchingFullData]);
+
   return {
     isSyncing,
+    isFetchingFullData,
     progress,
     error,
+    clearError,
     syncAll,
     syncRecent,
+    fetchFullActivityData,
   };
 }
