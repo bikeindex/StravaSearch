@@ -30,7 +30,7 @@ interface UseActivitySyncResult {
   clearError: () => void;
   syncAll: () => Promise<void>;
   syncRecent: () => Promise<void>;
-  fetchFullActivityData: (activityIds: number[]) => Promise<void>;
+  fetchFullActivityData: (activityIds: number[], isForPage?: boolean) => Promise<void>;
 }
 
 export function useActivitySync(): UseActivitySyncResult {
