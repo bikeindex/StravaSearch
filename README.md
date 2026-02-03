@@ -52,11 +52,8 @@ Other commands
 # Install dependencies. Uses legacy-peer-deps because storybook/vite version problem
 npm install --legacy-peer-deps
 
-# Start development server
+# Start development server and storybook
 npm run dev
-
-# run the storybook server
-npm run storybook
 
 # Build for production
 npm run build
@@ -76,6 +73,11 @@ vcr.downloadCassette(cassette)
 
 // See the data that is stored for an activity:
 await db.getActivityById(17145907973)
+
+// Enrich the activities on the page
+fetchFullActivityData()
+// enrich an individual activity
+fetchFullActivityData([9677113832])
 ```
 
 ## Tech Stack

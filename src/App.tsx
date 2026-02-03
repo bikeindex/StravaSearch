@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { usePreferences } from './contexts/PreferencesContext';
 import { useActivities } from './hooks/useActivities';
@@ -40,7 +40,16 @@ function Dashboard() {
   const currentPage = filters.page;
   const startIndex = (currentPage - 1) * PAGE_SIZE;
   const endIndex = Math.min(startIndex + PAGE_SIZE, filteredActivities.length);
-  const displayedActivityIds = filteredActivities.slice(startIndex, endIndex).map(a => a.id);
+  const displayedActivityIds = useMemo(
+    () => filteredActivities.slice(startIndex, endIndex).map(a => a.id),
+    [filteredActivities, startIndex, endIndex]
+  );
+
+  // Stable key for the current page's activity IDs (only changes when IDs actually change)
+  const displayedActivityIdsKey = useMemo(
+    () => displayedActivityIds.join(','),
+    [displayedActivityIds]
+  );
 
   // Expose fetchFullActivityData on window for console access
   useEffect(() => {
@@ -56,7 +65,7 @@ function Dashboard() {
     };
   }, [displayedActivityIds, fetchFullActivityData]);
 
-  // Auto-fetch full activity data when autoEnrich is enabled (debounced)
+  // Auto-fetch full activity data when autoEnrich is enabled (only when page changes)
   useEffect(() => {
     if (!autoEnrich || isSyncing || isFetchingFullData || displayedActivityIds.length === 0) {
       return;
@@ -67,7 +76,8 @@ function Dashboard() {
     }, 1500);
 
     return () => clearTimeout(timeoutId);
-  }, [autoEnrich, displayedActivityIds, isSyncing, isFetchingFullData, fetchFullActivityData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only trigger when the page's activity IDs change
+  }, [autoEnrich, displayedActivityIdsKey]);
 
   // Refresh activities when settings modal closes (in case of sync)
   const handleCloseSettings = useCallback(() => {

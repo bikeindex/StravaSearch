@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.tool-versions'
           cache: 'npm'
 
       - name: Install dependencies
@@ -36,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.tool-versions'
           cache: 'npm'
 
       - name: Install dependencies
@@ -55,7 +55,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.tool-versions'
           cache: 'npm'
 
       - name: Install dependencies
@@ -70,7 +70,7 @@ jobs:
     needs: [lint, typecheck, test]
     strategy:
       matrix:
-        node-version: [20.x, 22.x]
+        node-version-file: '.tool-versions'
 
     steps:
       - name: Checkout
@@ -79,7 +79,7 @@ jobs:
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version-file: '.tool-versions'
           cache: 'npm'
 
       - name: Install dependencies
