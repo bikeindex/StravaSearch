@@ -63,7 +63,10 @@ export function ActivityList({
   const goToPage = useCallback((page: number) => {
     const validPage = Math.max(1, Math.min(page, totalPages));
     onFiltersChange({ ...filters, page: validPage });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll after state update processes
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
   }, [totalPages, filters, onFiltersChange]);
 
   const selectPageActivities = useCallback(() => {
