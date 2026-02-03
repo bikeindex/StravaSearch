@@ -68,15 +68,12 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     needs: [lint, typecheck, test]
-    strategy:
-      matrix:
-        node-version-file: '.tool-versions'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: '.tool-versions'
@@ -92,7 +89,6 @@ jobs:
         run: npm run build-storybook
 
       - name: Upload build artifact
-        if: matrix.node-version == '20.x'
         uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -100,7 +96,6 @@ jobs:
           retention-days: 7
 
       - name: Upload Storybook artifact
-        if: matrix.node-version == '20.x'
         uses: actions/upload-artifact@v4
         with:
           name: storybook-static
