@@ -712,4 +712,47 @@ describe('useActivities', () => {
       expect(result.current.activityTypes).toEqual(['Ride', 'Run', 'Swim']);
     });
   });
+
+  describe('refreshActivities', () => {
+    it('does not set isLoading during silent refresh', async () => {
+      mockActivities.push(createActivity({ id: 1 }));
+
+      const { result } = renderHook(() => useActivities());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      // Track isLoading states during silent refresh
+      const loadingStates: boolean[] = [];
+      const unsubscribe = setInterval(() => {
+        loadingStates.push(result.current.isLoading);
+      }, 1);
+
+      await act(async () => {
+        await result.current.refreshActivities(true);
+      });
+
+      clearInterval(unsubscribe);
+
+      // Should never have been true during silent refresh
+      expect(loadingStates.every(state => state === false)).toBe(true);
+    });
+
+    it('still updates activities during silent refresh', async () => {
+      mockActivities.push(createActivity({ id: 1, name: 'Original' }));
+
+      const { result } = renderHook(() => useActivities());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      expect(result.current.activities[0].name).toBe('Original');
+
+      // Modify the mock data
+      mockActivities.length = 0;
+      mockActivities.push(createActivity({ id: 1, name: 'Updated' }));
+
+      await act(async () => {
+        await result.current.refreshActivities(true);
+      });
+
+      expect(result.current.activities[0].name).toBe('Updated');
+    });
+  });
 });

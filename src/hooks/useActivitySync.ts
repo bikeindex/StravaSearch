@@ -213,12 +213,11 @@ export function useActivitySync(): UseActivitySyncResult {
       for (let i = 0; i < idsToFetch.length; i++) {
         const activityId = idsToFetch[i];
         try {
-          console.log(`Enriching activity ${activityId}`);
           const fullActivity = await getActivity(activityId);
           // Save with enrichedAt timestamp to mark as enriched
           await saveActivities([{ ...fullActivity, enrichedAt: Date.now() } as never], athlete.id);
         } catch {
-          console.warn(`Failed to fetch full data for activity ${activityId}, skipping`);
+          // Skip failed activities silently
         }
 
         setProgress({
