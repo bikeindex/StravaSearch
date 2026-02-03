@@ -32,7 +32,7 @@ interface UseActivitiesResult {
   updateSelectedActivities: (updates: UpdatableActivity) => Promise<void>;
   isUpdating: boolean;
   updateProgress: UpdateProgress | null;
-  refreshActivities: () => Promise<void>;
+  refreshActivities: (silent?: boolean) => Promise<void>;
   activityTypes: string[];
 }
 
@@ -51,13 +51,15 @@ export function useActivities(): UseActivitiesResult {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null);
 
-  const loadActivities = useCallback(async () => {
+  const loadActivities = useCallback(async (silent = false) => {
     if (!athlete) {
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
@@ -76,7 +78,9 @@ export function useActivities(): UseActivitiesResult {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load activities');
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [athlete]);
 

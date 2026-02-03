@@ -43,8 +43,8 @@ function SettingsModalContent({ onClose }: { onClose: () => void }) {
     if (athlete) {
       getActivitiesForAthlete(athlete.id).then((activities) => {
         setActivityCount(activities.length);
-        // Count enriched activities (those with hide_from_home defined, which only comes from detailed API)
-        const enriched = activities.filter(a => a.hide_from_home !== undefined).length;
+        // Count enriched activities (those with enrichedAt set)
+        const enriched = activities.filter(a => a.enrichedAt).length;
         setEnrichedCount(enriched);
       });
     }

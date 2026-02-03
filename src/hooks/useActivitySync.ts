@@ -185,13 +185,20 @@ export function useActivitySync(): UseActivitySyncResult {
     setIsFetchingFullData(true);
     setError(null);
 
-    // Filter out activities that already have full data (hide_from_home is only present in detailed responses)
+    // Filter out activities that already have full data (enrichedAt is set when getActivity was called)
     const idsToFetch: number[] = [];
+    let alreadyEnrichedCount = 0;
     for (const id of activityIds) {
       const activity = await getActivityById(id);
-      if (activity && activity.hide_from_home === undefined) {
+      if (activity && activity.enrichedAt) {
+        alreadyEnrichedCount++;
+      } else if (activity) {
         idsToFetch.push(id);
       }
+    }
+
+    if (alreadyEnrichedCount > 0) {
+      console.log(`${alreadyEnrichedCount} activities already have full data`);
     }
 
     if (idsToFetch.length === 0) {
@@ -208,7 +215,8 @@ export function useActivitySync(): UseActivitySyncResult {
         try {
           console.log(`Enriching activity ${activityId}`);
           const fullActivity = await getActivity(activityId);
-          await saveActivities([fullActivity], athlete.id);
+          // Save with enrichedAt timestamp to mark as enriched
+          await saveActivities([{ ...fullActivity, enrichedAt: Date.now() } as never], athlete.id);
         } catch {
           console.warn(`Failed to fetch full data for activity ${activityId}, skipping`);
         }

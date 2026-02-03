@@ -91,7 +91,7 @@ function Dashboard() {
   useEffect(() => {
     if (isSyncing || isFetchingFullData) {
       const interval = setInterval(() => {
-        refreshActivities();
+        refreshActivities(true); // Silent refresh to avoid page blink
       }, 2000); // Refresh every 2 seconds during sync/fetch
       return () => clearInterval(interval);
     }
@@ -100,7 +100,7 @@ function Dashboard() {
   // Auto-refresh activities periodically (every 5 minutes)
   useEffect(() => {
     const interval = setInterval(() => {
-      refreshActivities();
+      refreshActivities(true); // Silent refresh to avoid page blink
     }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);

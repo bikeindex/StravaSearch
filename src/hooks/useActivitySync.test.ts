@@ -90,15 +90,15 @@ describe('useActivitySync', () => {
       const { getActivity } = await import('../services/strava');
       const { getActivityById, saveActivities } = await import('../services/database');
 
-      // Activity 1 already has full data (hide_from_home defined)
-      // Activity 2 does not have full data (hide_from_home undefined)
+      // Activity 1 already has full data (enrichedAt set)
+      // Activity 2 does not have full data (enrichedAt undefined)
       // Activity 3 does not exist in DB
       vi.mocked(getActivityById)
-        .mockResolvedValueOnce({ id: 1, name: 'Enriched', hide_from_home: false, athleteId: 12345, syncedAt: Date.now() } as never)
-        .mockResolvedValueOnce({ id: 2, name: 'Not enriched', hide_from_home: undefined, athleteId: 12345, syncedAt: Date.now() } as never)
+        .mockResolvedValueOnce({ id: 1, name: 'Enriched', enrichedAt: Date.now(), athleteId: 12345, syncedAt: Date.now() } as never)
+        .mockResolvedValueOnce({ id: 2, name: 'Not enriched', enrichedAt: undefined, athleteId: 12345, syncedAt: Date.now() } as never)
         .mockResolvedValueOnce(undefined);
 
-      vi.mocked(getActivity).mockResolvedValue({ id: 2, name: 'Full data', hide_from_home: false } as never);
+      vi.mocked(getActivity).mockResolvedValue({ id: 2, name: 'Full data' } as never);
 
       const { result } = renderHook(() => useActivitySync());
 
@@ -116,10 +116,10 @@ describe('useActivitySync', () => {
       const { getActivity } = await import('../services/strava');
       const { getActivityById, saveActivities } = await import('../services/database');
 
-      // All activities already have full data
+      // All activities already have full data (enrichedAt set)
       vi.mocked(getActivityById)
-        .mockResolvedValueOnce({ id: 1, name: 'Enriched 1', hide_from_home: false, athleteId: 12345, syncedAt: Date.now() } as never)
-        .mockResolvedValueOnce({ id: 2, name: 'Enriched 2', hide_from_home: true, athleteId: 12345, syncedAt: Date.now() } as never);
+        .mockResolvedValueOnce({ id: 1, name: 'Enriched 1', enrichedAt: Date.now(), athleteId: 12345, syncedAt: Date.now() } as never)
+        .mockResolvedValueOnce({ id: 2, name: 'Enriched 2', enrichedAt: Date.now() - 1000, athleteId: 12345, syncedAt: Date.now() } as never);
 
       const { result } = renderHook(() => useActivitySync());
 
