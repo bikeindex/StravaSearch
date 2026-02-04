@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePreferences } from '../contexts/PreferencesContext';
 import {
   getActivitiesForAthlete,
   getGearForAthlete,
@@ -8,7 +9,13 @@ import {
   type StoredGear,
 } from '../services/database';
 import { updateActivity as updateActivityApi } from '../services/strava';
+import { useUrlFilters } from './useUrlFilters';
 import type { SearchFilters, UpdatableActivity } from '../types/strava';
+
+interface UpdateProgress {
+  current: number;
+  total: number;
+}
 
 interface UseActivitiesResult {
   activities: StoredActivity[];
@@ -24,35 +31,35 @@ interface UseActivitiesResult {
   deselectAll: () => void;
   updateSelectedActivities: (updates: UpdatableActivity) => Promise<void>;
   isUpdating: boolean;
-  refreshActivities: () => Promise<void>;
+  updateProgress: UpdateProgress | null;
+  refreshActivities: (silent?: boolean) => Promise<void>;
   activityTypes: string[];
 }
 
-const defaultFilters: SearchFilters = {
-  query: '',
-  activityTypes: [],
-  gearIds: [],
-  dateFrom: null,
-  dateTo: null,
-};
+const MILES_TO_KM = 1.60934;
+const FEET_TO_METERS = 0.3048;
 
 export function useActivities(): UseActivitiesResult {
   const { athlete, isAuthenticated } = useAuth();
+  const { units } = usePreferences();
   const [activities, setActivities] = useState<StoredActivity[]>([]);
   const [gear, setGear] = useState<StoredGear[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
+  const [filters, setFilters] = useUrlFilters();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isUpdating, setIsUpdating] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(null);
 
-  const loadActivities = useCallback(async () => {
+  const loadActivities = useCallback(async (silent = false) => {
     if (!athlete) {
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
@@ -71,7 +78,9 @@ export function useActivities(): UseActivitiesResult {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load activities');
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [athlete]);
 
@@ -85,9 +94,9 @@ export function useActivities(): UseActivitiesResult {
     }
   }, [isAuthenticated, athlete, loadActivities]);
 
-  // Get unique activity types from the data
+  // Get unique activity types from the data (using sport_type for more specific types)
   const activityTypes = useMemo(() => {
-    const types = new Set(activities.map((a) => a.type));
+    const types = new Set(activities.map((a) => a.sport_type));
     return Array.from(types).sort();
   }, [activities]);
 
@@ -103,6 +112,11 @@ export function useActivities(): UseActivitiesResult {
           activity.location_city,
           activity.location_state,
           activity.location_country,
+          activity.device_name,
+          // Include all segment locations for search
+          ...(activity.segment_cities || []),
+          ...(activity.segment_states || []),
+          ...(activity.segment_countries || []),
         ]
           .filter(Boolean)
           .join(' ')
@@ -113,9 +127,9 @@ export function useActivities(): UseActivitiesResult {
         }
       }
 
-      // Activity type filter
+      // Activity type filter (using sport_type for more specific types)
       if (filters.activityTypes.length > 0) {
-        if (!filters.activityTypes.includes(activity.type)) {
+        if (!filters.activityTypes.includes(activity.sport_type)) {
           return false;
         }
       }
@@ -123,6 +137,13 @@ export function useActivities(): UseActivitiesResult {
       // Gear filter
       if (filters.gearIds.length > 0) {
         if (!activity.gear_id || !filters.gearIds.includes(activity.gear_id)) {
+          return false;
+        }
+      }
+
+      // No equipment filter
+      if (filters.noEquipment) {
+        if (activity.gear_id) {
           return false;
         }
       }
@@ -146,9 +167,70 @@ export function useActivities(): UseActivitiesResult {
         }
       }
 
+      // Distance range filter (distanceFrom/distanceTo are in user units, activity.distance is in meters)
+      if (filters.distanceFrom !== null) {
+        const distanceInKm = activity.distance / 1000;
+        const filterValueInKm = units === 'imperial' ? filters.distanceFrom * MILES_TO_KM : filters.distanceFrom;
+        if (distanceInKm < filterValueInKm) {
+          return false;
+        }
+      }
+
+      if (filters.distanceTo !== null) {
+        const distanceInKm = activity.distance / 1000;
+        const filterValueInKm = units === 'imperial' ? filters.distanceTo * MILES_TO_KM : filters.distanceTo;
+        if (distanceInKm > filterValueInKm) {
+          return false;
+        }
+      }
+
+      // Elevation range filter (elevationFrom/elevationTo are in user units, activity.total_elevation_gain is in meters)
+      if (filters.elevationFrom !== null) {
+        const filterValueInMeters = units === 'imperial' ? filters.elevationFrom * FEET_TO_METERS : filters.elevationFrom;
+        if (activity.total_elevation_gain < filterValueInMeters) {
+          return false;
+        }
+      }
+
+      if (filters.elevationTo !== null) {
+        const filterValueInMeters = units === 'imperial' ? filters.elevationTo * FEET_TO_METERS : filters.elevationTo;
+        if (activity.total_elevation_gain > filterValueInMeters) {
+          return false;
+        }
+      }
+
+      // Muted filter
+      if (filters.mutedFilter === 'muted') {
+        if (!activity.hide_from_home) {
+          return false;
+        }
+      } else if (filters.mutedFilter === 'not_muted') {
+        if (activity.hide_from_home) {
+          return false;
+        }
+      }
+
+      // Photo filter
+      if (filters.photoFilter === 'with_photo') {
+        if ((activity.total_photo_count || 0) === 0) {
+          return false;
+        }
+      } else if (filters.photoFilter === 'without_photo') {
+        if ((activity.total_photo_count || 0) > 0) {
+          return false;
+        }
+      }
+
+      // Visibility filter
+      if (filters.visibilityFilter !== 'all') {
+        if (activity.visibility !== filters.visibilityFilter) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [activities, filters]);
+  }, [activities, filters, units]);
 
   const selectAll = useCallback(() => {
     setSelectedIds(new Set(filteredActivities.map((a) => a.id)));
@@ -164,9 +246,12 @@ export function useActivities(): UseActivitiesResult {
 
       setIsUpdating(true);
       setError(null);
+      const total = selectedIds.size;
+      setUpdateProgress({ current: 0, total });
 
       const errors: string[] = [];
       let successCount = 0;
+      let current = 0;
 
       for (const id of selectedIds) {
         try {
@@ -181,11 +266,15 @@ export function useActivities(): UseActivitiesResult {
           errors.push(`Activity ${id}: ${err instanceof Error ? err.message : 'Failed'}`);
         }
 
+        current++;
+        setUpdateProgress({ current, total });
+
         // Small delay to avoid rate limiting
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       // Reload activities
+      setUpdateProgress({ current: total, total });
       await loadActivities();
 
       if (errors.length > 0) {
@@ -194,6 +283,7 @@ export function useActivities(): UseActivitiesResult {
 
       setSelectedIds(new Set());
       setIsUpdating(false);
+      setUpdateProgress(null);
     },
     [selectedIds, isUpdating, loadActivities]
   );
@@ -212,6 +302,7 @@ export function useActivities(): UseActivitiesResult {
     deselectAll,
     updateSelectedActivities,
     isUpdating,
+    updateProgress,
     refreshActivities: loadActivities,
     activityTypes,
   };

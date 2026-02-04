@@ -1,10 +1,11 @@
-import type {
-  StravaActivity,
-  StravaTokenResponse,
-  StoredAuth,
-  StravaGear,
-  UpdatableActivity,
-  StravaAthlete,
+import {
+  type StravaActivity,
+  type StravaTokenResponse,
+  type StoredAuth,
+  type StravaGear,
+  type UpdatableActivity,
+  type StravaAthlete,
+  deriveLocationFromSegments,
 } from '../types/strava';
 import { saveAuth, getAuth, clearAuth } from './database';
 
@@ -16,15 +17,18 @@ const STRAVA_API_URL = 'https://www.strava.com/api/v3';
 const ENV_CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || '';
 const ENV_CLIENT_SECRET = import.meta.env.VITE_STRAVA_CLIENT_SECRET || '';
 
-// Credentials can be set via env vars or localStorage (user input takes precedence)
+// Credentials can be set via env vars or storage (user input takes precedence)
+// Client ID uses localStorage (not sensitive), Client Secret uses sessionStorage (more secure)
 let CLIENT_ID = localStorage.getItem('strava_client_id') || ENV_CLIENT_ID;
-let CLIENT_SECRET = localStorage.getItem('strava_client_secret') || ENV_CLIENT_SECRET;
+let CLIENT_SECRET = sessionStorage.getItem('strava_client_secret') || ENV_CLIENT_SECRET;
 
 export function setStravaCredentials(clientId: string, clientSecret: string): void {
   CLIENT_ID = clientId;
   CLIENT_SECRET = clientSecret;
   localStorage.setItem('strava_client_id', clientId);
-  localStorage.setItem('strava_client_secret', clientSecret);
+  // Use sessionStorage for client secret - reduces XSS exposure window
+  // Secret is cleared when browser tab closes
+  sessionStorage.setItem('strava_client_secret', clientSecret);
 }
 
 export function getStravaCredentials(): { clientId: string; clientSecret: string } {
@@ -133,9 +137,18 @@ async function getValidAccessToken(): Promise<string> {
   return auth.accessToken;
 }
 
+// Rate limit handling configuration
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retryCount: number = 0
 ): Promise<T> {
   const accessToken = await getValidAccessToken();
 
@@ -153,6 +166,24 @@ async function apiRequest<T>(
       await clearAuth();
       throw new Error('Session expired. Please log in again.');
     }
+
+    // Handle rate limiting (429) with exponential backoff
+    if (response.status === 429) {
+      if (retryCount >= MAX_RETRIES) {
+        throw new Error('Rate limit exceeded. Please wait a few minutes and try again.');
+      }
+
+      // Check for Retry-After header (Strava sometimes provides this)
+      const retryAfter = response.headers.get('Retry-After');
+      const delayMs = retryAfter
+        ? parseInt(retryAfter, 10) * 1000
+        : BASE_DELAY_MS * Math.pow(2, retryCount); // Exponential backoff: 1s, 2s, 4s
+
+      console.warn(`Rate limited. Retrying in ${delayMs}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      await sleep(delayMs);
+      return apiRequest<T>(endpoint, options, retryCount + 1);
+    }
+
     const error = await response.text();
     throw new Error(`API request failed: ${error}`);
   }
@@ -169,6 +200,30 @@ export async function getAthleteGear(): Promise<StravaGear[]> {
     '/athlete'
   );
   return [...(athlete.bikes || []), ...(athlete.shoes || [])];
+}
+
+interface ActivityTotals {
+  count: number;
+  distance: number;
+  moving_time: number;
+  elapsed_time: number;
+  elevation_gain: number;
+}
+
+interface AthleteStats {
+  all_ride_totals: ActivityTotals;
+  all_run_totals: ActivityTotals;
+  all_swim_totals: ActivityTotals;
+}
+
+export async function getAthleteStats(athleteId: number): Promise<number> {
+  const stats = await apiRequest<AthleteStats>(`/athletes/${athleteId}/stats`);
+  // Sum up all activity counts
+  return (
+    (stats.all_ride_totals?.count || 0) +
+    (stats.all_run_totals?.count || 0) +
+    (stats.all_swim_totals?.count || 0)
+  );
 }
 
 export async function getActivities(
@@ -194,33 +249,54 @@ export async function getActivities(
 }
 
 export async function getActivity(id: number): Promise<StravaActivity> {
-  return apiRequest<StravaActivity>(`/activities/${id}`);
+  const activity = await apiRequest<StravaActivity>(`/activities/${id}`);
+  return deriveLocationFromSegments(activity);
 }
 
 export async function updateActivity(
   id: number,
   updates: UpdatableActivity
 ): Promise<StravaActivity> {
-  return apiRequest<StravaActivity>(`/activities/${id}`, {
+  // Send the update
+  await apiRequest<StravaActivity>(`/activities/${id}`, {
     method: 'PUT',
     body: JSON.stringify(updates),
   });
+
+  // Fetch full activity details (PUT response doesn't include photos, segment_efforts, etc.)
+  return getActivity(id);
+}
+
+export interface GetAllActivitiesOptions {
+  onProgress?: (loaded: number, total: number | null) => void;
+  onBatch?: (activities: StravaActivity[], totalSoFar: number) => Promise<void>;
+  after?: number;
 }
 
 export async function getAllActivities(
-  onProgress?: (loaded: number, total: number | null) => void,
+  onProgressOrOptions?: ((loaded: number, total: number | null) => void) | GetAllActivitiesOptions,
   after?: number
 ): Promise<StravaActivity[]> {
+  // Support both old signature (onProgress, after) and new options object
+  const options: GetAllActivitiesOptions = typeof onProgressOrOptions === 'function'
+    ? { onProgress: onProgressOrOptions, after }
+    : onProgressOrOptions || {};
+
   const allActivities: StravaActivity[] = [];
   let page = 1;
   const perPage = 100;
 
   while (true) {
-    const activities = await getActivities(page, perPage, undefined, after);
+    const activities = await getActivities(page, perPage, undefined, options.after);
     allActivities.push(...activities);
 
-    if (onProgress) {
-      onProgress(allActivities.length, null);
+    // Call batch callback with the new batch
+    if (options.onBatch && activities.length > 0) {
+      await options.onBatch(activities, allActivities.length);
+    }
+
+    if (options.onProgress) {
+      options.onProgress(allActivities.length, null);
     }
 
     if (activities.length < perPage) {

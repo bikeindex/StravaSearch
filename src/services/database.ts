@@ -4,6 +4,7 @@ import type { StravaActivity, StravaGear, StoredAuth } from '../types/strava';
 export interface StoredActivity extends StravaActivity {
   athleteId: number;
   syncedAt: number;
+  enrichedAt?: number;
 }
 
 export interface StoredGear extends StravaGear {

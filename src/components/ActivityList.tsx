@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { ActivityCard } from './ActivityCard';
 import { BulkActions } from './BulkActions';
 import type { StoredActivity, StoredGear } from '../services/database';
-import type { UpdatableActivity } from '../types/strava';
-import { Loader2 } from 'lucide-react';
+import type { UpdatableActivity, SearchFilters } from '../types/strava';
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatNumber } from '../utils/formatters';
 
 interface ActivityListProps {
   activities: StoredActivity[];
@@ -11,10 +12,12 @@ interface ActivityListProps {
   isLoading: boolean;
   selectedIds: Set<number>;
   onToggleSelect: (id: number) => void;
-  onSelectAll: () => void;
+  onSelectIds: (ids: number[]) => void;
   onDeselectAll: () => void;
   onUpdateSelected: (updates: UpdatableActivity) => Promise<void>;
   isUpdating: boolean;
+  filters: SearchFilters;
+  onFiltersChange: (filters: SearchFilters) => void;
 }
 
 const PAGE_SIZE = 50;
@@ -25,19 +28,50 @@ export function ActivityList({
   isLoading,
   selectedIds,
   onToggleSelect,
-  onSelectAll,
+  onSelectIds,
   onDeselectAll,
   onUpdateSelected,
   isUpdating,
+  filters,
+  onFiltersChange,
 }: ActivityListProps) {
-  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
+  const currentPage = filters.page;
+  const prevActivitiesLength = useRef(activities.length);
 
-  const displayedActivities = activities.slice(0, displayCount);
-  const hasMore = displayCount < activities.length;
+  const totalPages = Math.ceil(activities.length / PAGE_SIZE);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, activities.length);
+  const displayedActivities = activities.slice(startIndex, endIndex);
 
-  const loadMore = useCallback(() => {
-    setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, activities.length));
-  }, [activities.length]);
+  // Reset to page 1 when activities change (e.g., filters applied)
+  useEffect(() => {
+    if (prevActivitiesLength.current !== activities.length) {
+      prevActivitiesLength.current = activities.length;
+      if (currentPage !== 1) {
+        onFiltersChange({ ...filters, page: 1 });
+      }
+    }
+  }, [activities.length, currentPage, filters, onFiltersChange]);
+
+  // Ensure current page is valid
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      onFiltersChange({ ...filters, page: totalPages });
+    }
+  }, [totalPages, currentPage, filters, onFiltersChange]);
+
+  const goToPage = useCallback((page: number) => {
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    onFiltersChange({ ...filters, page: validPage });
+    // Scroll after state update processes
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
+  }, [totalPages, filters, onFiltersChange]);
+
+  const selectPageActivities = useCallback(() => {
+    onSelectIds(displayedActivities.map((a) => a.id));
+  }, [displayedActivities, onSelectIds]);
 
   if (isLoading) {
     return (
@@ -62,8 +96,11 @@ export function ActivityList({
     <div className="space-y-4">
       <BulkActions
         selectedCount={selectedIds.size}
-        totalCount={activities.length}
-        onSelectAll={onSelectAll}
+        pageCount={displayedActivities.length}
+        totalPages={totalPages}
+        currentPage={currentPage}
+        onPageChange={goToPage}
+        onSelectAll={selectPageActivities}
         onDeselectAll={onDeselectAll}
         onUpdateSelected={onUpdateSelected}
         isUpdating={isUpdating}
@@ -82,14 +119,81 @@ export function ActivityList({
         ))}
       </div>
 
-      {hasMore && (
-        <div className="flex justify-center pt-4">
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
           <button
-            onClick={loadMore}
-            className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Load more ({activities.length - displayCount} remaining)
+            <ChevronLeft className="w-5 h-5" />
           </button>
+
+          <div className="flex items-center gap-1">
+            {/* First page */}
+            {currentPage > 2 && (
+              <>
+                <button
+                  onClick={() => goToPage(1)}
+                  className="px-3 py-1 rounded-lg hover:bg-gray-100"
+                >
+                  1
+                </button>
+                {currentPage > 3 && <span className="px-2 text-gray-400">...</span>}
+              </>
+            )}
+
+            {/* Previous page */}
+            {currentPage > 1 && (
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                className="px-3 py-1 rounded-lg hover:bg-gray-100"
+              >
+                {currentPage - 1}
+              </button>
+            )}
+
+            {/* Current page */}
+            <button className="px-3 py-1 rounded-lg bg-[#fc4c02] text-white">
+              {currentPage}
+            </button>
+
+            {/* Next page */}
+            {currentPage < totalPages && (
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                className="px-3 py-1 rounded-lg hover:bg-gray-100"
+              >
+                {currentPage + 1}
+              </button>
+            )}
+
+            {/* Last page */}
+            {currentPage < totalPages - 1 && (
+              <>
+                {currentPage < totalPages - 2 && <span className="px-2 text-gray-400">...</span>}
+                <button
+                  onClick={() => goToPage(totalPages)}
+                  className="px-3 py-1 rounded-lg hover:bg-gray-100"
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+
+          <span className="ml-4 text-sm text-gray-500">
+            Page {formatNumber(currentPage)} of {formatNumber(totalPages)}
+          </span>
         </div>
       )}
     </div>

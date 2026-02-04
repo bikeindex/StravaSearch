@@ -160,7 +160,7 @@ class VCR {
     this.cassetteName = name;
     this.interactions = [];
     this.isRecording = true;
-    this.originalFetch = window.fetch;
+    this.originalFetch = window.fetch.bind(window);
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
@@ -261,7 +261,7 @@ class VCR {
     }
 
     this.loadedCassette = cassette;
-    this.originalFetch = window.fetch;
+    this.originalFetch = window.fetch.bind(window);
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;

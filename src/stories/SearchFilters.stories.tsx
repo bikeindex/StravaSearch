@@ -20,8 +20,19 @@ const defaultFilters: SearchFiltersType = {
   query: '',
   activityTypes: [],
   gearIds: [],
+  noEquipment: false,
   dateFrom: null,
   dateTo: null,
+  distanceFrom: null,
+  distanceTo: null,
+  elevationFrom: null,
+  elevationTo: null,
+  activityTypesExpanded: false,
+  equipmentExpanded: false,
+  mutedFilter: 'all',
+  photoFilter: 'all',
+  visibilityFilter: 'all',
+  page: 1,
 };
 
 const SearchFiltersWrapper = (args: React.ComponentProps<typeof SearchFilters>) => {
@@ -96,14 +107,37 @@ export const WithMultipleFilters: Story = {
       query: 'park',
       activityTypes: ['Run'],
       gearIds: ['g67890'],
+      noEquipment: false,
       dateFrom: '2024-01-01',
       dateTo: null,
+      distanceFrom: null,
+      distanceTo: null,
+      elevationFrom: null,
+      elevationTo: null,
+      activityTypesExpanded: true,
+      equipmentExpanded: true,
+      mutedFilter: 'all',
+      photoFilter: 'all',
+      visibilityFilter: 'all',
+      page: 1,
     },
     onFiltersChange: () => {},
     activityTypes: ['Run', 'Ride', 'Swim', 'Hike', 'VirtualRide', 'Walk'],
     gear: mockGear,
     totalCount: 150,
     filteredCount: 5,
+  },
+};
+
+export const WithNoEquipmentFilter: Story = {
+  render: (args) => <SearchFiltersWrapper {...args} />,
+  args: {
+    filters: { ...defaultFilters, noEquipment: true },
+    onFiltersChange: () => {},
+    activityTypes: ['Run', 'Ride', 'Swim', 'Hike', 'VirtualRide', 'Walk'],
+    gear: mockGear,
+    totalCount: 150,
+    filteredCount: 23,
   },
 };
 

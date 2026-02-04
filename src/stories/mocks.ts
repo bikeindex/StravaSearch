@@ -1,4 +1,5 @@
 import type { StoredActivity, StoredGear } from '../services/database';
+import babyHawkCassette from '../testing/cassettes/baby_hawk.json';
 
 export const mockGear: StoredGear[] = [
   {
@@ -255,6 +256,96 @@ export const mockActivities: StoredActivity[] = [
   },
 ];
 
+// Extract activity data from baby_hawk.json cassette
+const babyHawkResponse = babyHawkCassette.interactions[0].response.body as Record<string, unknown>;
+const babyHawkSegments = babyHawkResponse.segment_efforts as Array<{ segment: { city: string | null; state: string | null; country: string | null } }> | undefined;
+const firstSegmentWithLocation = babyHawkSegments?.find(s => s.segment?.city || s.segment?.state);
+
+// Extract all unique locations from segment efforts
+const segmentCities = new Set<string>();
+const segmentStates = new Set<string>();
+const segmentCountries = new Set<string>();
+babyHawkSegments?.forEach((effort) => {
+  if (effort.segment?.city) segmentCities.add(effort.segment.city);
+  if (effort.segment?.state) segmentStates.add(effort.segment.state);
+  if (effort.segment?.country) segmentCountries.add(effort.segment.country);
+});
+
+export const babyHawkActivity: StoredActivity = {
+  id: babyHawkResponse.id as number,
+  name: babyHawkResponse.name as string,
+  description: (babyHawkResponse.description as string) || undefined,
+  distance: babyHawkResponse.distance as number,
+  moving_time: babyHawkResponse.moving_time as number,
+  elapsed_time: babyHawkResponse.elapsed_time as number,
+  total_elevation_gain: babyHawkResponse.total_elevation_gain as number,
+  type: babyHawkResponse.type as string,
+  sport_type: babyHawkResponse.sport_type as string,
+  start_date: babyHawkResponse.start_date as string,
+  start_date_local: babyHawkResponse.start_date_local as string,
+  timezone: babyHawkResponse.timezone as string,
+  utc_offset: babyHawkResponse.utc_offset as number,
+  // Derive location from segment efforts when activity location is null
+  location_city: (babyHawkResponse.location_city as string | null) ?? firstSegmentWithLocation?.segment?.city ?? undefined,
+  location_state: (babyHawkResponse.location_state as string | null) ?? firstSegmentWithLocation?.segment?.state ?? undefined,
+  location_country: (babyHawkResponse.location_country as string | null) ?? firstSegmentWithLocation?.segment?.country ?? undefined,
+  // All unique locations from segment efforts
+  segment_cities: segmentCities.size > 0 ? Array.from(segmentCities).sort() : undefined,
+  segment_states: segmentStates.size > 0 ? Array.from(segmentStates).sort() : undefined,
+  segment_countries: segmentCountries.size > 0 ? Array.from(segmentCountries).sort() : undefined,
+  achievement_count: babyHawkResponse.achievement_count as number,
+  kudos_count: babyHawkResponse.kudos_count as number,
+  comment_count: babyHawkResponse.comment_count as number,
+  athlete_count: babyHawkResponse.athlete_count as number,
+  photo_count: babyHawkResponse.photo_count as number,
+  trainer: babyHawkResponse.trainer as boolean,
+  commute: babyHawkResponse.commute as boolean,
+  manual: babyHawkResponse.manual as boolean,
+  private: babyHawkResponse.private as boolean,
+  visibility: babyHawkResponse.visibility as string,
+  flagged: babyHawkResponse.flagged as boolean,
+  gear_id: babyHawkResponse.gear_id as string,
+  average_speed: babyHawkResponse.average_speed as number,
+  max_speed: babyHawkResponse.max_speed as number,
+  average_watts: babyHawkResponse.average_watts as number,
+  device_watts: babyHawkResponse.device_watts as boolean,
+  kilojoules: babyHawkResponse.kilojoules as number,
+  has_heartrate: babyHawkResponse.has_heartrate as boolean,
+  average_heartrate: babyHawkResponse.average_heartrate as number,
+  max_heartrate: babyHawkResponse.max_heartrate as number,
+  heartrate_opt_out: babyHawkResponse.heartrate_opt_out as boolean,
+  display_hide_heartrate_option: babyHawkResponse.display_hide_heartrate_option as boolean,
+  pr_count: babyHawkResponse.pr_count as number,
+  total_photo_count: babyHawkResponse.total_photo_count as number,
+  has_kudoed: babyHawkResponse.has_kudoed as boolean,
+  suffer_score: babyHawkResponse.suffer_score as number,
+  calories: babyHawkResponse.calories as number,
+  device_name: babyHawkResponse.device_name as string | undefined,
+  hide_from_home: babyHawkResponse.hide_from_home as boolean | undefined,
+  photos: babyHawkResponse.photos as {
+    primary?: {
+      unique_id: string;
+      urls: { '100': string; '600': string };
+      source: number;
+      media_type: number;
+    };
+    use_primary_photo: boolean;
+    count: number;
+  } | undefined,
+  athleteId: (babyHawkResponse.athlete as { id: number }).id,
+  syncedAt: Date.now(),
+};
+
+const babyHawkGearResponse = babyHawkResponse.gear as Record<string, unknown>;
+export const babyHawkGear: StoredGear = {
+  id: babyHawkGearResponse.id as string,
+  primary: babyHawkGearResponse.primary as boolean,
+  name: babyHawkGearResponse.name as string,
+  distance: babyHawkGearResponse.distance as number,
+  resource_state: babyHawkGearResponse.resource_state as number,
+  athleteId: (babyHawkResponse.athlete as { id: number }).id,
+};
+
 export const mockAthlete = {
   id: 12345,
   username: 'athlete123',
@@ -263,6 +354,13 @@ export const mockAthlete = {
   city: 'New York',
   state: 'New York',
   country: 'United States',
-  profile: 'https://dgalywyr863hv.cloudfront.net/pictures/athletes/12345/large.jpg',
-  profile_medium: 'https://dgalywyr863hv.cloudfront.net/pictures/athletes/12345/medium.jpg',
+  profile: 'https://dgalywyr863hv.cloudfront.net/pictures/athletes/2430215/2807433/6/large.jpg',
+  profile_medium: 'https://dgalywyr863hv.cloudfront.net/pictures/athletes/2430215/2807433/6/medium.jpg',
+};
+
+export const mockSyncState = {
+  athleteId: 12345,
+  lastSyncedAt: Date.now() - 1000 * 60 * 30, // 30 minutes ago
+  oldestActivityDate: '2020-01-01T00:00:00Z',
+  isInitialSyncComplete: true,
 };
