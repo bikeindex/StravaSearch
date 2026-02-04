@@ -255,6 +255,8 @@ export const ACTIVITY_TYPES: ActivityType[] = [
 ];
 
 export type MutedFilter = 'all' | 'muted' | 'not_muted';
+export type PhotoFilter = 'all' | 'with_photo' | 'without_photo';
+export type VisibilityFilter = 'all' | 'everyone' | 'followers_only' | 'only_me';
 
 export interface SearchFilters {
   query: string;
@@ -270,6 +272,8 @@ export interface SearchFilters {
   activityTypesExpanded: boolean;
   equipmentExpanded: boolean;
   mutedFilter: MutedFilter;
+  photoFilter: PhotoFilter;
+  visibilityFilter: VisibilityFilter;
   page: number;
 }
 

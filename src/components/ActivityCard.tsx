@@ -168,6 +168,12 @@ export const ActivityCard = memo(function ActivityCard({
           {activity.hide_from_home && (
             <span title="Not published to Home or Club feeds">Muted</span>
           )}
+
+          {activity.visibility && activity.visibility !== 'everyone' && (
+            <span title={`Visibility: ${activity.visibility}`}>
+              {activity.visibility === 'followers_only' ? '👥 Followers' : '🔒 Private'}
+            </span>
+          )}
         </div>
         </div>
 

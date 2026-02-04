@@ -39,6 +39,8 @@ const defaultFilters: SearchFilters = {
   activityTypesExpanded: true,
   equipmentExpanded: true,
   mutedFilter: 'all',
+  photoFilter: 'all',
+  visibilityFilter: 'all',
   page: 1,
 };
 

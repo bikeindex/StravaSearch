@@ -210,6 +210,24 @@ export function useActivities(): UseActivitiesResult {
         }
       }
 
+      // Photo filter
+      if (filters.photoFilter === 'with_photo') {
+        if ((activity.total_photo_count || 0) === 0) {
+          return false;
+        }
+      } else if (filters.photoFilter === 'without_photo') {
+        if ((activity.total_photo_count || 0) > 0) {
+          return false;
+        }
+      }
+
+      // Visibility filter
+      if (filters.visibilityFilter !== 'all') {
+        if (activity.visibility !== filters.visibilityFilter) {
+          return false;
+        }
+      }
+
       return true;
     });
   }, [activities, filters, units]);

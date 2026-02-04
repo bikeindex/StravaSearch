@@ -43,7 +43,9 @@ export function SearchFilters({
     filters.distanceTo !== null ||
     filters.elevationFrom !== null ||
     filters.elevationTo !== null ||
-    filters.mutedFilter !== 'all';
+    filters.mutedFilter !== 'all' ||
+    filters.photoFilter !== 'all' ||
+    filters.visibilityFilter !== 'all';
 
   const clearFilters = () => {
     onFiltersChange({
@@ -59,6 +61,8 @@ export function SearchFilters({
       elevationFrom: null,
       elevationTo: null,
       mutedFilter: 'all',
+      photoFilter: 'all',
+      visibilityFilter: 'all',
     });
   };
 
@@ -222,7 +226,61 @@ export function SearchFilters({
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              NOT muted
+              Not muted
+            </button>
+          </div>
+          <div className="flex ml-2">
+            <button
+              onClick={() => onFiltersChange({ ...filters, visibilityFilter: filters.visibilityFilter === 'everyone' ? 'all' : 'everyone' })}
+              className={`px-3 py-1 text-sm rounded-l-full transition-colors ${
+                filters.visibilityFilter === 'everyone'
+                  ? 'bg-[#fc4c02] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Public
+            </button>
+            <button
+              onClick={() => onFiltersChange({ ...filters, visibilityFilter: filters.visibilityFilter === 'followers_only' ? 'all' : 'followers_only' })}
+              className={`px-3 py-1 text-sm transition-colors ${
+                filters.visibilityFilter === 'followers_only'
+                  ? 'bg-[#fc4c02] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Followers
+            </button>
+            <button
+              onClick={() => onFiltersChange({ ...filters, visibilityFilter: filters.visibilityFilter === 'only_me' ? 'all' : 'only_me' })}
+              className={`px-3 py-1 text-sm rounded-r-full transition-colors ${
+                filters.visibilityFilter === 'only_me'
+                  ? 'bg-[#fc4c02] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Private
+            </button>
+          </div>
+          <div className="flex ml-2">
+            <button
+              onClick={() => onFiltersChange({ ...filters, photoFilter: filters.photoFilter === 'with_photo' ? 'all' : 'with_photo' })}
+              className={`px-3 py-1 text-sm rounded-l-full transition-colors ${
+                filters.photoFilter === 'with_photo'
+                  ? 'bg-[#fc4c02] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              With photo
+            </button>
+            <button
+              onClick={() => onFiltersChange({ ...filters, photoFilter: filters.photoFilter === 'without_photo' ? 'all' : 'without_photo' })}
+              className={`px-3 py-1 text-sm rounded-r-full transition-colors ${
+                filters.photoFilter === 'without_photo'
+                  ? 'bg-[#fc4c02] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              No photo
             </button>
           </div>
         </div>
