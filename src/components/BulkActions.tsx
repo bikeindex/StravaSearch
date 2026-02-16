@@ -1,12 +1,16 @@
-import { useState } from 'react';
-import { CheckSquare, Square, Edit3, Loader2, X, Tag } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckSquare, Square, Edit3, Loader2, X, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { StoredGear } from '../services/database';
 import type { UpdatableActivity } from '../types/strava';
 import { ACTIVITY_TYPES } from '../types/strava';
+import { formatNumber, formatActivityType } from '../utils/formatters';
 
 interface BulkActionsProps {
   selectedCount: number;
-  totalCount: number;
+  pageCount: number;
+  totalPages: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
   onUpdateSelected: (updates: UpdatableActivity) => Promise<void>;
@@ -16,7 +20,10 @@ interface BulkActionsProps {
 
 export function BulkActions({
   selectedCount,
-  totalCount,
+  pageCount,
+  totalPages,
+  currentPage,
+  onPageChange,
   onSelectAll,
   onDeselectAll,
   onUpdateSelected,
@@ -24,6 +31,11 @@ export function BulkActions({
   gear,
 }: BulkActionsProps) {
   const [showEditModal, setShowEditModal] = useState(false);
+
+  const goToPage = (page: number) => {
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    onPageChange(validPage);
+  };
   const [editType, setEditType] = useState<'type' | 'gear' | 'tags' | null>(null);
   const [selectedType, setSelectedType] = useState('');
   const [selectedGearId, setSelectedGearId] = useState('');
@@ -31,6 +43,9 @@ export function BulkActions({
   const [trainerValue, setTrainerValue] = useState<boolean | null>(null);
 
   const handleUpdate = async () => {
+    // Close modal first so only the full-page progress overlay is visible
+    setShowEditModal(false);
+
     if (editType === 'type' && selectedType) {
       await onUpdateSelected({ type: selectedType as UpdatableActivity['type'] });
     } else if (editType === 'gear') {
@@ -60,23 +75,37 @@ export function BulkActions({
     setTrainerValue(null);
   };
 
+  useEffect(() => {
+    if (!showEditModal) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showEditModal]);
+
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-lg shadow-sm p-3">
+      {/* Selection controls - no card */}
+      <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
           <button
-            onClick={selectedCount === totalCount ? onDeselectAll : onSelectAll}
+            onClick={selectedCount > 0 ? onDeselectAll : onSelectAll}
             className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
           >
-            {selectedCount === totalCount && totalCount > 0 ? (
+            {selectedCount > 0 ? (
               <CheckSquare className="w-5 h-5 text-[#fc4c02]" />
             ) : (
               <Square className="w-5 h-5" />
             )}
             <span>
               {selectedCount > 0
-                ? `${selectedCount} selected`
-                : `Select all (${totalCount})`}
+                ? `${formatNumber(selectedCount)} selected`
+                : totalPages > 1
+                  ? `Select all on page (${formatNumber(pageCount)})`
+                  : `Select all (${formatNumber(pageCount)})`}
             </span>
           </button>
 
@@ -90,58 +119,82 @@ export function BulkActions({
           )}
         </div>
 
-        {selectedCount > 0 && (
-          <div className="flex items-center gap-2">
+        {/* Top pagination - only show when multiple pages */}
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1 text-sm text-gray-600">
             <button
-              onClick={() => {
-                setEditType('type');
-                setShowEditModal(true);
-              }}
-              disabled={isUpdating}
-              className="flex items-center gap-2 px-3 py-1.5 bg-[#fc4c02] text-white rounded-md hover:bg-[#e34402] transition-colors disabled:opacity-50"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isUpdating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Edit3 className="w-4 h-4" />
-              )}
-              Change Type
+              <ChevronLeft className="w-4 h-4" />
             </button>
-
+            <span className="px-2">
+              {currentPage} / {totalPages}
+            </span>
             <button
-              onClick={() => {
-                setEditType('gear');
-                setShowEditModal(true);
-              }}
-              disabled={isUpdating}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isUpdating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Edit3 className="w-4 h-4" />
-              )}
-              Change Gear
-            </button>
-
-            <button
-              onClick={() => {
-                setEditType('tags');
-                setShowEditModal(true);
-              }}
-              disabled={isUpdating}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {isUpdating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Tag className="w-4 h-4" />
-              )}
-              Change Tags
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}
       </div>
+
+      {/* Bulk action buttons - in card, only shown when items selected */}
+      {selectedCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 bg-white rounded-lg shadow-sm p-3">
+          <button
+            onClick={() => {
+              setEditType('type');
+              setShowEditModal(true);
+            }}
+            disabled={isUpdating}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {isUpdating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Edit3 className="w-4 h-4" />
+            )}
+            Change Type
+          </button>
+
+          <button
+            onClick={() => {
+              setEditType('gear');
+              setShowEditModal(true);
+            }}
+            disabled={isUpdating}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {isUpdating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Edit3 className="w-4 h-4" />
+            )}
+            Change Gear
+          </button>
+
+          <button
+            onClick={() => {
+              setEditType('tags');
+              setShowEditModal(true);
+            }}
+            disabled={isUpdating}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {isUpdating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Tag className="w-4 h-4" />
+            )}
+            Change Tags
+          </button>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {showEditModal && (
@@ -162,7 +215,7 @@ export function BulkActions({
             </div>
 
             <p className="text-sm text-gray-600 mb-4">
-              This will update {selectedCount} selected activit{selectedCount === 1 ? 'y' : 'ies'} on Strava.
+              This will update {formatNumber(selectedCount)} selected activit{selectedCount === 1 ? 'y' : 'ies'} on Strava.
             </p>
 
             {editType === 'type' && (
@@ -178,7 +231,7 @@ export function BulkActions({
                   <option value="">Choose a type...</option>
                   {ACTIVITY_TYPES.map((type) => (
                     <option key={type} value={type}>
-                      {type}
+                      {formatActivityType(type)}
                     </option>
                   ))}
                 </select>

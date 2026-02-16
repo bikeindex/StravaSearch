@@ -13,6 +13,7 @@ const meta = {
     onSelectAll: { action: 'selectAll' },
     onDeselectAll: { action: 'deselectAll' },
     onUpdateSelected: { action: 'updateSelected' },
+    onPageChange: { action: 'pageChange' },
   },
 } satisfies Meta<typeof BulkActions>;
 
@@ -22,7 +23,10 @@ type Story = StoryObj<typeof meta>;
 export const NoneSelected: Story = {
   args: {
     selectedCount: 0,
-    totalCount: 150,
+    pageCount: 50,
+    totalPages: 3,
+    currentPage: 1,
+    onPageChange: () => {},
     onSelectAll: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
@@ -34,7 +38,10 @@ export const NoneSelected: Story = {
 export const SomeSelected: Story = {
   args: {
     selectedCount: 12,
-    totalCount: 150,
+    pageCount: 50,
+    totalPages: 3,
+    currentPage: 1,
+    onPageChange: () => {},
     onSelectAll: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
@@ -45,8 +52,11 @@ export const SomeSelected: Story = {
 
 export const AllSelected: Story = {
   args: {
-    selectedCount: 150,
-    totalCount: 150,
+    selectedCount: 50,
+    pageCount: 50,
+    totalPages: 3,
+    currentPage: 2,
+    onPageChange: () => {},
     onSelectAll: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
@@ -58,7 +68,10 @@ export const AllSelected: Story = {
 export const Updating: Story = {
   args: {
     selectedCount: 12,
-    totalCount: 150,
+    pageCount: 50,
+    totalPages: 3,
+    currentPage: 1,
+    onPageChange: () => {},
     onSelectAll: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
@@ -70,11 +83,29 @@ export const Updating: Story = {
 export const NoGear: Story = {
   args: {
     selectedCount: 5,
-    totalCount: 50,
+    pageCount: 50,
+    totalPages: 3,
+    currentPage: 1,
+    onPageChange: () => {},
     onSelectAll: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
     isUpdating: false,
     gear: [],
+  },
+};
+
+export const SinglePage: Story = {
+  args: {
+    selectedCount: 0,
+    pageCount: 25,
+    totalPages: 1,
+    currentPage: 1,
+    onPageChange: () => {},
+    onSelectAll: () => {},
+    onDeselectAll: () => {},
+    onUpdateSelected: async () => {},
+    isUpdating: false,
+    gear: mockGear,
   },
 };

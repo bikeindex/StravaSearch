@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 import { ActivityList } from '../components/ActivityList';
 import { mockActivities, mockGear } from './mocks';
+import type { SearchFilters } from '../types/strava';
 
 const meta = {
   title: 'Components/ActivityList',
@@ -15,8 +16,28 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const defaultFilters: SearchFilters = {
+  query: '',
+  activityTypes: [],
+  gearIds: [],
+  noEquipment: false,
+  dateFrom: null,
+  dateTo: null,
+  distanceFrom: null,
+  distanceTo: null,
+  elevationFrom: null,
+  elevationTo: null,
+  activityTypesExpanded: false,
+  equipmentExpanded: false,
+  mutedFilter: 'all',
+  photoFilter: 'all',
+  visibilityFilter: 'all',
+  page: 1,
+};
+
 const ActivityListWrapper = (args: React.ComponentProps<typeof ActivityList>) => {
   const [selectedIds, setSelectedIds] = useState(args.selectedIds);
+  const [filters, setFilters] = useState(args.filters);
 
   const handleToggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -30,8 +51,8 @@ const ActivityListWrapper = (args: React.ComponentProps<typeof ActivityList>) =>
     });
   };
 
-  const handleSelectAll = () => {
-    setSelectedIds(new Set(args.activities.map((a) => a.id)));
+  const handleSelectIds = (ids: number[]) => {
+    setSelectedIds(new Set(ids));
   };
 
   const handleDeselectAll = () => {
@@ -44,8 +65,10 @@ const ActivityListWrapper = (args: React.ComponentProps<typeof ActivityList>) =>
         {...args}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
-        onSelectAll={handleSelectAll}
+        onSelectIds={handleSelectIds}
         onDeselectAll={handleDeselectAll}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
     </div>
   );
@@ -59,10 +82,12 @@ export const Default: Story = {
     isLoading: false,
     selectedIds: new Set(),
     onToggleSelect: () => {},
-    onSelectAll: () => {},
+    onSelectIds: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
     isUpdating: false,
+    filters: defaultFilters,
+    onFiltersChange: () => {},
   },
 };
 
@@ -74,10 +99,12 @@ export const Loading: Story = {
     isLoading: true,
     selectedIds: new Set(),
     onToggleSelect: () => {},
-    onSelectAll: () => {},
+    onSelectIds: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
     isUpdating: false,
+    filters: defaultFilters,
+    onFiltersChange: () => {},
   },
 };
 
@@ -89,10 +116,12 @@ export const Empty: Story = {
     isLoading: false,
     selectedIds: new Set(),
     onToggleSelect: () => {},
-    onSelectAll: () => {},
+    onSelectIds: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
     isUpdating: false,
+    filters: defaultFilters,
+    onFiltersChange: () => {},
   },
 };
 
@@ -104,10 +133,12 @@ export const WithSelections: Story = {
     isLoading: false,
     selectedIds: new Set([1001, 1002]),
     onToggleSelect: () => {},
-    onSelectAll: () => {},
+    onSelectIds: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
     isUpdating: false,
+    filters: defaultFilters,
+    onFiltersChange: () => {},
   },
 };
 
@@ -119,10 +150,12 @@ export const Updating: Story = {
     isLoading: false,
     selectedIds: new Set([1001, 1002, 1003]),
     onToggleSelect: () => {},
-    onSelectAll: () => {},
+    onSelectIds: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
     isUpdating: true,
+    filters: defaultFilters,
+    onFiltersChange: () => {},
   },
 };
 
@@ -141,9 +174,11 @@ export const ManyActivities: Story = {
     isLoading: false,
     selectedIds: new Set(),
     onToggleSelect: () => {},
-    onSelectAll: () => {},
+    onSelectIds: () => {},
     onDeselectAll: () => {},
     onUpdateSelected: async () => {},
     isUpdating: false,
+    filters: defaultFilters,
+    onFiltersChange: () => {},
   },
 };
