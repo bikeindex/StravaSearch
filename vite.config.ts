@@ -30,8 +30,13 @@ export default defineConfig(({ mode }) => {
   }
 
   // Default app build
+  const port = process.env.PORT ? Number(process.env.PORT) : undefined;
   return {
     plugins: [react(), tailwindcss()],
     base: './',
+    server: {
+      port,
+      strictPort: !!port,
+    },
   };
 });

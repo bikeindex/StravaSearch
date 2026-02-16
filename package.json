@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:vite\" \"npm run dev:storybook\"",
     "dev:vite": "vite",
-    "dev:storybook": "storybook dev -p 6006",
+    "dev:storybook": "storybook dev -p ${STORYBOOK_PORT:-6006}",
     "build": "tsc -b && vite build",
     "build:lib": "tsc -b && vite build --mode lib",
     "lint": "eslint .",
@@ -18,7 +18,7 @@
     "test:integration": "vitest run --config vitest.browser.config.ts",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "storybook": "storybook dev -p 6006",
+    "storybook": "storybook dev -p ${STORYBOOK_PORT:-6006}",
     "build-storybook": "storybook build",
     "prepare": "husky",
     "check-credentials": "node scripts/check-credentials.js"
