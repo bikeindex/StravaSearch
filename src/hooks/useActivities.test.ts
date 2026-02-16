@@ -697,6 +697,83 @@ describe('useActivities', () => {
         expect(result.current.selectedIds.size).toBe(0);
       });
     });
+
+    describe('deselect on filter change', () => {
+      it('deselects activities that are filtered out', async () => {
+        mockActivities.push(
+          createActivity({ id: 1, sport_type: 'Run' }),
+          createActivity({ id: 2, sport_type: 'Ride' }),
+          createActivity({ id: 3, sport_type: 'Swim' })
+        );
+
+        const { result } = renderHook(() => useActivities());
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // Select the Run (1) and the Ride (2)
+        act(() => {
+          result.current.setSelectedIds(new Set([1, 2]));
+        });
+        expect(result.current.selectedIds).toEqual(new Set([1, 2]));
+
+        // Filter to only Rides — Run should be deselected
+        act(() => {
+          result.current.setFilters((prev) => ({ ...prev, activityTypes: ['Ride'] }));
+        });
+
+        await waitFor(() => {
+          expect(result.current.selectedIds).toEqual(new Set([2]));
+        });
+      });
+
+      it('deselects all when no selected activities match filter', async () => {
+        mockActivities.push(
+          createActivity({ id: 1, sport_type: 'Run' }),
+          createActivity({ id: 2, sport_type: 'Ride' }),
+          createActivity({ id: 3, sport_type: 'Swim' })
+        );
+
+        const { result } = renderHook(() => useActivities());
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        act(() => {
+          result.current.setSelectedIds(new Set([1]));
+        });
+
+        // Filter to only Swims — Run should be deselected
+        act(() => {
+          result.current.setFilters((prev) => ({ ...prev, activityTypes: ['Swim'] }));
+        });
+
+        await waitFor(() => {
+          expect(result.current.selectedIds).toEqual(new Set());
+        });
+      });
+
+      it('keeps selection when filtered activities still include selected', async () => {
+        mockActivities.push(
+          createActivity({ id: 1, sport_type: 'Run' }),
+          createActivity({ id: 2, sport_type: 'Ride' }),
+          createActivity({ id: 3, sport_type: 'Swim' })
+        );
+
+        const { result } = renderHook(() => useActivities());
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        act(() => {
+          result.current.setSelectedIds(new Set([1]));
+        });
+
+        // Filter to Runs — selection should remain
+        act(() => {
+          result.current.setFilters((prev) => ({ ...prev, activityTypes: ['Run'] }));
+        });
+
+        await waitFor(() => {
+          expect(result.current.filteredActivities.length).toBe(1);
+        });
+        expect(result.current.selectedIds).toEqual(new Set([1]));
+      });
+    });
   });
 
   describe('activity types extraction', () => {

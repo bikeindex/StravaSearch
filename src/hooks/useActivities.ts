@@ -232,6 +232,16 @@ export function useActivities(): UseActivitiesResult {
     });
   }, [activities, filters, units]);
 
+  // Deselect activities that are no longer visible
+  useEffect(() => {
+    const filteredIdSet = new Set(filteredActivities.map((a) => a.id));
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const pruned = new Set([...prev].filter((id) => filteredIdSet.has(id)));
+      return pruned.size === prev.size ? prev : pruned;
+    });
+  }, [filteredActivities]);
+
   const selectAll = useCallback(() => {
     setSelectedIds(new Set(filteredActivities.map((a) => a.id)));
   }, [filteredActivities]);
