@@ -1,5 +1,13 @@
 # Strava Search
 
+### This has been merged with the main Bike Index app
+
+**See [PR #3126](https://github.com/bikeindex/bike_index/pull/3126)**
+
+
+
+---
+
 A static web application for searching, filtering, and bulk-updating your Strava activities. Deployed via GitHub Pages - all data is stored locally in your browser.
 
 ## Features
